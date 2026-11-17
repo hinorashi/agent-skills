@@ -1,10 +1,12 @@
 # agent-skills
 
+[![skills.sh](https://skills.sh/b/hinorashi/agent-skills)](https://skills.sh/hinorashi/agent-skills)
+
 Reusable [Agent Skills](https://agentskills.io/specification) by @hinorashi.
 
 | Skill | What it does |
 |---|---|
-| [peekaboo](skills/peekaboo/SKILL.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt) or describe a new one and it draws an original SVG. The mascot peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. |
+| [peekaboo](skills/peekaboo/SKILL.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and it draws an original SVG, checking the image is eligible first and showing a preview page for your approval before touching your code. The mascot peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. |
 
 ![Kei, Mochi and Bolt](docs/gallery.png)
 
@@ -27,6 +29,7 @@ another project. The others are scaled from how long the skill's test runs took,
 | Answer the interview only (e.g. a vague request) | ~10k | < 1 |
 | Add a ready-made character (e.g. Bolt) | ~156k | ~9.5 |
 | Draw a new character and add it to a small app | ~115–160k | ~7–10 |
+| Mascot from your image, with one preview round | ~130–180k | ~8–11 |
 
 Actual cost depends on the model and its credit multiplier, how large the app is, and how many follow-up tweaks you ask for.
 
