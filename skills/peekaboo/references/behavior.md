@@ -28,7 +28,16 @@ stateDiagram-v2
     Visiting --> Off: shortcut turns off
     Keepsake --> Off: shortcut turns off
     Hidden --> Off: shortcut turns off
+    Off --> PoweredOff: power shortcut
+    Hidden --> PoweredOff: power shortcut
+    Keepsake --> PoweredOff: power shortcut
+    Visiting --> PoweredOff: power shortcut
+    PoweredOff --> Off: power shortcut (was hidden)
+    PoweredOff --> Visiting: power shortcut (was shown)
 ```
+
+`Off` here is the show/hide choice (`enabled`); `PoweredOff` is the separate power switch (`powered`), which sits above
+it and remembers the show/hide choice underneath.
 
 A visit rises (`peeking`, 0.5 s springy transition), then plays `options.routine`: a list of
 `[wait before the step in ms, action]`. The default (`defaultRoutine`, Kei's) is:
@@ -49,8 +58,8 @@ changed. A routine that does not end with `sink` gets `[450, 'sink']` appended; 
 Every await checks a run counter (`run`). Hiding or toggling bumps it, so an in-flight visit stops at its next step
 instead of fighting the new state. Keep this pattern when adding steps.
 
-Random visits are skipped while the mascot is off, a visit is running, the tab is hidden, the user prefers reduced
-motion, or the page is in fullscreen.
+Random visits are skipped while the mascot is off or powered off, a visit is running, the tab is hidden, the user
+prefers reduced motion, or the page is in fullscreen.
 
 ## 2. Placement model
 
@@ -107,12 +116,27 @@ the default when invalid.
 
 ## 5. On/off toggle and notices
 
-- Off by default; the first press of the shortcut turns it on and it peeks out immediately.
-- The choice persists in `localStorage` (`peekaboo-<name>` → `on`/`off`); storage errors fall back silently.
-- Shortcut matched by `event.code` (layout and macOS Option safe); ignore repeats, composition, and already-handled
-  events. Pick a combination the app and browser do not use (Alt+first letter is a good start; check conflicts).
-- Notify only when the user turns it on and no spot fits. Success needs no message; the mascot is the feedback.
-  Route the notice through the app's own toast/notification system via `options.notify`.
+There are two switches, each with its own shortcut and persisted choice:
+
+| Switch | Default | Shortcut (Kei) | Storage | Effect |
+|---|---|---|---|---|
+| **Show/hide** (`enabled`, `toggle()`) | off | Alt+K (`shortcut`) | `peekaboo-<name>` | whether it visits |
+| **Power** (`powered`, `togglePower()`) | on | Alt+Shift+K (`powerShortcut`) | `<storageKey>-power` | whether the mascot exists at all |
+
+- Show/hide is off by default; the first press of the shortcut turns it on and it peeks out immediately.
+- Power off hides everything (figure, keepsake, grab area), stops visits and ignores the show/hide shortcut, but keeps
+  the show/hide choice. Powering on restores it: a shown mascot peeks out at once; a hidden one stays hidden and a
+  notice says which shortcut shows it. Powering off also gives a notice with the shortcut to turn it back on, since
+  the show/hide shortcut then seems to do nothing.
+- `powerShortcut` defaults to the show/hide shortcut plus Shift; set it explicitly when that combination is taken, or
+  `false` to drop the power switch. `poweredByDefault` (default `true`) and `powerStorageKey` work like their
+  show/hide counterparts. When replacing a mascot, pinning `storageKey` pins the default power key too.
+- Choices persist in `localStorage` (`on`/`off`); storage errors fall back silently.
+- Shortcuts are matched by `event.code` with exact modifiers (layout and macOS Option safe), so Alt+K and Alt+Shift+K
+  never trigger each other; repeats, composition, and already-handled events are ignored. Pick combinations the app
+  and browser do not use (Alt+first letter is a good start; check conflicts).
+- Notify only when the user turns it on and no spot fits, or when the power switch changes. A successful visit needs
+  no message; the mascot is the feedback. Route notices through the app's own toast system via `options.notify`.
 
 ## 6. Personality: tuning the routine
 

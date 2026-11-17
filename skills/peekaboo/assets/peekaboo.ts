@@ -1,6 +1,10 @@
 // Peekaboo: a small SVG mascot that now and then peeks out from behind an edge of the page, looks around, blinks and
 // sinks back, leaving a keepsake (hair tuft, ears, hat tip...) above the edge that can be clicked to call it back.
+// Two switches: show/hide (e.g. Alt+K, default off) and power (e.g. Alt+Shift+K, default on) for turning it off entirely.
 // Framework-free, no dependencies. Pair with peekaboo.css. See the peekaboo skill's SKILL.md for how to adapt it.
+
+/** The peekaboo skill version this copy came from; the skill compares it to offer updates. Keep it when copying. */
+export const PEEKABOO_VERSION = '1.5.0';
 
 export type Side = 'top' | 'bottom' | 'left' | 'right';
 type Direction = 'up' | 'down' | 'left' | 'right';
@@ -48,12 +52,21 @@ export interface PeekabooOptions {
   gap?: number;
   /** Random wait between visits, in ms. Default [12 000, 42 000]. */
   interval?: [number, number];
-  /** localStorage key for the on/off choice. Default `peekaboo-<name>`. */
+  /** localStorage key for the show/hide choice. Default `peekaboo-<name>`. */
   storageKey?: string;
-  /** Toggle shortcut matched by `KeyboardEvent.code`, e.g. { code: 'KeyK', altKey: true }. `false` disables it. */
-  shortcut?: { code: string; altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean } | false;
-  /** Whether the mascot is on before the user has toggled it. Default false. */
+  /** Show/hide shortcut matched by `KeyboardEvent.code`, e.g. { code: 'KeyK', altKey: true }. `false` disables it. */
+  shortcut?: Shortcut | false;
+  /** Whether the mascot is shown before the user has toggled it. Default false. */
   enabledByDefault?: boolean;
+  /**
+   * Shortcut that turns the whole mascot on or off. While off, it never appears and the show/hide shortcut is ignored.
+   * Default: the show/hide shortcut plus Shift (Alt+K → Alt+Shift+K). `false` disables it.
+   */
+  powerShortcut?: Shortcut | false;
+  /** localStorage key for the power choice. Default `<storageKey>-power`. */
+  powerStorageKey?: string;
+  /** Whether the mascot is powered on before the user has toggled it. Default true. */
+  poweredByDefault?: boolean;
   /** Stable id for character-specific CSS (`.peekaboo[data-character=...]`). Default: the name in lowercase. */
   character?: string;
   /** What happens during a visit: [wait before the step in ms, action]. Ends with 'sink' (added if missing). */
@@ -68,10 +81,17 @@ export interface PeekabooOptions {
   random?: () => number;
 }
 
+export interface Shortcut { code: string; altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean }
+
 export interface Peekaboo {
+  /** Shown: visits are on. Only takes effect while powered. */
   readonly enabled: boolean;
   toggle(): boolean;
   setEnabled(on: boolean): void;
+  /** Powered: the mascot exists at all. While off, nothing appears and the show/hide shortcut is ignored. */
+  readonly powered: boolean;
+  togglePower(): boolean;
+  setPowered(on: boolean): void;
   /** Peeks out now at a random free spot; resolves false when there is none. */
   peekNow(): Promise<boolean>;
   hide(): void;
@@ -85,6 +105,13 @@ interface Clip extends Box { direction: Direction; rise: number }
 const turns: Record<Direction, number> = { up: 0, down: 180, left: -90, right: 90 };
 const outward: Record<Side, Direction> = { top: 'up', bottom: 'down', left: 'left', right: 'right' };
 const flipped: Record<Direction, Direction> = { up: 'down', down: 'up', left: 'right', right: 'left' };
+
+/** "Alt+Shift+K" for { code: 'KeyK', altKey: true, shiftKey: true }. */
+function label(keys: Shortcut) {
+  const mods = (['ctrlKey', 'altKey', 'shiftKey', 'metaKey'] as const).filter(key => keys[key])
+    .map(key => ({ ctrlKey: 'Ctrl', altKey: 'Alt', shiftKey: 'Shift', metaKey: 'Meta' })[key]);
+  return [...mods, keys.code.replace(/^(Key|Digit)/, '')].join('+');
+}
 
 export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   const width = options.width ?? 80;
@@ -103,6 +130,10 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   }
   if (routine.at(-1)?.[1] !== 'sink') routine.push([450, 'sink']);
   const notify = options.notify ?? (message => console.info(message));
+  const shortcut = options.shortcut ?? false;
+  const powerShortcut = options.powerShortcut
+    ?? (shortcut && !shortcut.shiftKey ? { ...shortcut, shiftKey: true } : false);
+  const powerStorageKey = options.powerStorageKey ?? `${storageKey}-power`;
   // The grab area over the keepsake, before rotation: base on the edge, most of the figure's width.
   const markWidth = Math.round(width * 0.75);
   const markHeight = keepsake + 2;
@@ -143,15 +174,21 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   let markTimer: number | undefined;
   // Bumped to cancel a visit in progress.
   let run = 0;
-  let enabled = readEnabled();
+  let enabled = readChoice(storageKey, options.enabledByDefault ?? false);
+  let powered = readChoice(powerStorageKey, options.poweredByDefault ?? true);
+  frame.hidden = !powered;
 
-  function readEnabled() {
+  function readChoice(key: string, fallback: boolean) {
     try {
-      const saved = localStorage.getItem(storageKey);
-      return saved === null ? options.enabledByDefault ?? false : saved === 'on';
+      const saved = localStorage.getItem(key);
+      return saved === null ? fallback : saved === 'on';
     } catch {
-      return options.enabledByDefault ?? false;
+      return fallback;
     }
+  }
+
+  function saveChoice(key: string, on: boolean) {
+    try { localStorage.setItem(key, on ? 'on' : 'off'); } catch { /* private mode: keep the choice for this page only */ }
   }
 
   function pageBox(element: Element): Box {
@@ -306,7 +343,7 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
 
   async function visit(target: Spot) {
     const box = windowFor(target, false);
-    if (busy || destroyed || !box) return false;
+    if (busy || destroyed || !powered || !box) return false;
     busy = true;
     window.clearTimeout(markTimer);
     spot = target;
@@ -343,17 +380,19 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   }
 
   async function peekNow() {
+    if (!powered) return false;
     const target = randomSpot();
     return target ? visit(target) : false;
   }
 
   function setEnabled(on: boolean) {
     enabled = on;
-    try { localStorage.setItem(storageKey, on ? 'on' : 'off'); } catch { /* private mode: keep the choice for this page only */ }
+    saveChoice(storageKey, on);
     if (!on) {
       hide();
       return;
     }
+    if (!powered) return;
     // Quiet when it works; speak up only when the user asked for the mascot and it cannot appear.
     if (!randomSpot()) notify(`${options.name} has no free spot on screen right now and will peek out when there is room.`);
     else void peekNow();
@@ -364,11 +403,31 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
     return enabled;
   }
 
+  function setPowered(on: boolean) {
+    if (on === powered) return;
+    powered = on;
+    saveChoice(powerStorageKey, on);
+    frame.hidden = !on;
+    if (!on) {
+      hide();
+      // Otherwise the show/hide shortcut seems broken; say how to get the mascot back.
+      notify(`${options.name} is turned off.${powerShortcut ? ` Press ${label(powerShortcut)} to turn it back on.` : ''}`);
+      return;
+    }
+    if (enabled) setEnabled(true);
+    else notify(`${options.name} is turned on.${shortcut ? ` Press ${label(shortcut)} to show it.` : ''}`);
+  }
+
+  function togglePower() {
+    setPowered(!powered);
+    return powered;
+  }
+
   async function schedule() {
     while (!destroyed) {
       await wait(minWait + random() * (maxWait - minWait));
       if (destroyed) return;
-      if (enabled && !busy && !document.hidden && !reducedMotion.matches && !document.fullscreenElement) await peekNow();
+      if (powered && enabled && !busy && !document.hidden && !reducedMotion.matches && !document.fullscreenElement) await peekNow();
     }
   }
 
@@ -379,13 +438,18 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
     if (refocus && !mark.hidden) mark.focus();
   };
   const onLayout = () => { if (!busy) placeMark(); };
-  const shortcut = options.shortcut ?? false;
+  const matches = (event: KeyboardEvent, keys: Shortcut | false): keys is Shortcut => !!keys
+    && event.code === keys.code && event.altKey === !!keys.altKey && event.ctrlKey === !!keys.ctrlKey
+    && event.shiftKey === !!keys.shiftKey && event.metaKey === !!keys.metaKey;
   const onKey = (event: KeyboardEvent) => {
-    if (!shortcut || event.code !== shortcut.code || event.isComposing || event.defaultPrevented) return;
-    if (event.altKey !== !!shortcut.altKey || event.ctrlKey !== !!shortcut.ctrlKey
-      || event.shiftKey !== !!shortcut.shiftKey || event.metaKey !== !!shortcut.metaKey) return;
-    event.preventDefault();
-    if (!event.repeat) toggle();
+    if (event.isComposing || event.defaultPrevented) return;
+    if (matches(event, powerShortcut)) {
+      event.preventDefault();
+      if (!event.repeat) togglePower();
+    } else if (powered && matches(event, shortcut)) {
+      event.preventDefault();
+      if (!event.repeat) toggle();
+    }
   };
   mark.addEventListener('click', onClick);
   window.addEventListener('resize', onLayout);
@@ -401,6 +465,9 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
     get enabled() { return enabled; },
     toggle,
     setEnabled,
+    get powered() { return powered; },
+    togglePower,
+    setPowered,
     peekNow,
     hide,
     destroy() {

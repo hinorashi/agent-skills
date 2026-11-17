@@ -1,18 +1,19 @@
 ---
 name: peekaboo
-description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, in chibi or realistic style, shows a preview page for approval, then wires it in, replacing an existing mascot if the user chooses. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
+description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, in chibi or realistic style, shows a preview page for approval, then wires it in, replacing an existing mascot if the user chooses. Offers to update a mascot installed by an older version of this skill. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
 license: MIT
 compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the SVG checker needs Python 3.
 metadata:
   author: hinorashi
-  version: "1.4.0"
+  version: "1.5.0"
 ---
 
 # Peekaboo mascot
 
 Build a small, original SVG mascot that lives at the edges of a web app. It peeks out at random spots that cover
 nothing, looks left and right, blinks and sinks back. It leaves a recognizable bit of itself above the edge for a few
-seconds that users can click to pull it out again. It is off by default and toggled with a shortcut. It stays silent
+seconds that users can click to pull it out again. It is hidden by default and shown or hidden with a shortcut
+(e.g. Alt+K); a second shortcut (e.g. Alt+Shift+K) turns it off entirely and back on (on by default). It stays silent
 unless it cannot find room.
 
 The behavior is solved in `assets/peekaboo.ts` + `assets/peekaboo.css`, and three characters are ready in
@@ -45,6 +46,11 @@ python3 <skill-dir>/scripts/find_mascot.py <project-dir>
 An app gets one mascot. If one is found, the first form also asks whether to **replace** it or **keep** it and stop
 (`references/replacing.md`).
 
+If it reports **UPDATE AVAILABLE**, the installed mascot came from an older version of this skill. Whatever the user
+asked for, add an **Update to the latest version?** field to the same form, with a one-line summary of what is new, and
+do the update when accepted (`references/updating.md`). If the user declines, change nothing; the offer comes back the
+next time the skill is used.
+
 Then ask everything in **one form** (a structured question tool if you have one, otherwise one concise message with
 numbered questions), with the defaults filled in from the app. Which mascot: **Kei**, **Mochi**, **Bolt** (one line
 each from the gallery), **create a new one** from a description, or **from your image**. Add the fields from the
@@ -75,7 +81,7 @@ pet and saves a round when it is a person.
 | *New / image:* **Personality** | e.g. shy, curious, sleepy, cheeky, stoic | curious |
 | *New / image:* **Keepsake** | the part left above the edge: hair tuft, ears, antenna, hat tip… or none | top-most signature feature |
 | **Where to hide** | header, sidebar, panels, footer, cards… | propose from the app's layout |
-| **Shortcut** | toggle key | the character's suggested one, else Alt + first letter, if free |
+| **Shortcut** | show/hide key; the power key (turn it off entirely) is the same plus Shift | the character's suggested one, else Alt + first letter, if free (check the Shift variant too) |
 | **Keepsake time** | seconds the keepsake stays | 10 s, configurable |
 | **Size** | upright size in px | 80 × 100 chibi, 120 × 150 realistic |
 
@@ -130,52 +136,94 @@ Put the link to the page (URL and file path) and a one-line summary (name, style
 in the question. When done, stop the server and delete the scratch folder and the preview: the preview holds a copy of
 the reference image. Gallery characters skip this step unless the user asks to see one.
 
-### 4. Wire it into the app
+### 4. Wire it into the app as an optional feature
 
 Replacing a mascot? Follow `references/replacing.md` §3–4 instead of a fresh install: keep the app's slot (call site,
 edges, obstacles, shortcut, storage key, config), swap the character, then check nothing of the old one is left.
 
-1. Copy `assets/peekaboo.ts`, `assets/peekaboo.css` and the character's SVG (plus its CSS, if any) into the project
-   (e.g. `src/mascot/`). Match the project's language (strip types for plain JS) and style conventions. Keep the
-   module generic: personality goes in options, not in edits to `visit()`.
+1. Keep the entire feature in one dedicated folder that is not imported by business code. For example:
+
+   ```text
+   src/optional/mascot/
+     index.ts                 # app-specific setup and the mountMascot() boundary
+     peekaboo.ts              # generic behavior engine
+     peekaboo.css
+     characters/
+       mochi.svg
+       mochi.css              # only if the character has one
+   ```
+
+   Copy `assets/peekaboo.ts`, `assets/peekaboo.css` and the character's SVG (plus its CSS, if any) into that folder.
+   Match the project's language (strip types for plain JS) and style conventions. Keep the engine generic: personality
+   goes in options, not in edits to `visit()`. Keep app-specific selectors, shortcut, notifications and configuration
+   in `index.ts` or files inside this folder; the mascot must not be imported by business features or services.
 2. Map the layout to `edges` and `obstacles` (see `references/behavior.md` §2–3):
    - edges: sides of stable containers (header bottom, panel group sides, sidebar edge), outward or `inward`;
    - obstacles: everything users read or click, panels and controls included; `touchable` for the surfaces it hides
      behind; never the anchor of an inward edge.
-3. Create it once, in the browser only, after the layout exists:
+3. Keep one mount/unmount seam in the app shell. Its only responsibility is to start the feature after the layout
+   exists and return the engine's cleanup function. Put the options and asset imports inside the optional folder:
 
    ```ts
-   import { createPeekaboo } from './mascot/peekaboo';
-   import './mascot/peekaboo.css';
-   import './mascot/mochi.css';                    // only if the character has one
-   import mascotSvg from './mascot/mochi.svg?raw'; // or an inline template string
+   // src/optional/mascot/index.ts
+   import { createPeekaboo } from './peekaboo';
+   import './peekaboo.css';
+   import './characters/mochi.css'; // only if the character has one
+   import mascotSvg from './characters/mochi.svg?raw'; // or an inline template string
 
-   createPeekaboo({
-     name: 'Mochi',
-     character: 'mochi',
-     svg: mascotSvg,
-     // Personality, copied from characters/mochi/character.json "options":
-     keepsake: 20,
-     interval: [20_000, 60_000],
-     accent: '#d1638f',
-     routine: [[900, 'look'], [450, 'look-back'], [450, 'look-ahead'], [300, 'blink'], [320, 'pause'], [250, 'sink']],
-     edges: [{ anchor: 'header', side: 'bottom' }, { anchor: 'main', side: 'left' }],
-     obstacles: 'main, nav, button, a, input, select, textarea, label, h1, p',
-     touchable: 'main',
-     shortcut: { code: 'KeyM', altKey: true },
-     keepsakeMs: keepsakeSeconds() * 1000, // parsed and validated, see item 4 below
-     notify: message => showToast(message),
-   });
+   export function mountMascot(): () => void {
+     const mascot = createPeekaboo({
+       name: 'Mochi',
+       character: 'mochi',
+       svg: mascotSvg,
+       // Personality, copied from characters/mochi/character.json "options":
+       keepsake: 20,
+       interval: [20_000, 60_000],
+       accent: '#d1638f',
+       routine: [[900, 'look'], [450, 'look-back'], [450, 'look-ahead'], [300, 'blink'], [320, 'pause'], [250, 'sink']],
+       edges: [{ anchor: 'header', side: 'bottom' }, { anchor: 'main', side: 'left' }],
+       obstacles: 'main, nav, button, a, input, select, textarea, label, h1, p',
+       touchable: 'main',
+       shortcut: { code: 'KeyM', altKey: true },      // show/hide
+       // powerShortcut defaults to Alt+Shift+M (turn it off entirely, on by default); set it if that is taken
+     });
+     return () => mascot.destroy();
+   }
    ```
 
-   Destroy it on unmount in SPA frameworks (`destroy()`).
+   The app shell imports only this boundary and mounts it once in the browser after the layout exists. For example,
+   in React:
+
+   ```tsx
+   import { useEffect } from 'react';
+   import { mountMascot } from './optional/mascot';
+
+   function App() {
+     useEffect(() => mountMascot(), []);
+     return <BusinessApp />;
+   }
+   ```
+
+   Other frameworks should call the returned disposer from their unmount lifecycle. Put app-specific notification
+   wiring and validated settings (such as configurable keepsake time) inside `src/optional/mascot/`, not in business
+   features. Do not mount it from business features. Keep the CSS and SVG imports inside the optional folder so
+   removing the feature cannot leave unresolved asset imports elsewhere.
 
    Ship the SVG the way the project ships other code: a bundler import (`?raw` in Vite, an asset loader elsewhere) or
    an inline string in a JS module. Avoid fetching it at runtime. In a no-build app, `fetch` fails when someone opens
    `index.html` from disk, and the mascot then silently never appears.
 4. Make the keepsake time configurable without code edits (env var or the app's config file), validate it and fall
-   back to the default with a console warning.
+   back to the default with a console warning. Keep its parsing and mascot-specific key inside the optional folder.
 5. Tune personality with `routine`, `interval` and scoped CSS (`references/behavior.md` §6).
+
+### Removing the mascot later
+
+The app shell should have exactly one mascot integration: the import and mount call for `mountMascot()`. To remove
+the feature, remove that import and call, then delete `src/optional/mascot/`. Remove any mascot-only environment
+variables, tests, and documentation as well. Run the app's type check, build and relevant tests after removal. If
+those checks fail because business code imports the mascot or its assets, move that dependency behind the optional
+folder boundary before considering the feature removable. Do not edit business behavior to compensate for deleting
+the mascot.
 
 ### 5. Keep these promises
 
@@ -183,7 +231,9 @@ These are what make a mascot welcome rather than annoying; preserve them through
 
 - **Never covers the app**: no overlap with obstacles, fully in the viewport for random spots, below sticky headers,
   menus, dialogs and toasts in z-order, `pointer-events: none` on the figure.
-- **Off by default**, persisted per browser; the first shortcut press shows it at once.
+- **Hidden by default**, persisted per browser; the first show/hide shortcut press shows it at once.
+- **Can be turned off entirely** with the power shortcut (on by default, persisted); while off, nothing appears and
+  the show/hide shortcut is ignored.
 - **Silent on success**: notify only when it is turned on and has no free spot.
 - **Respects the user**: no visits with reduced motion, hidden tab or fullscreen; keepsake has a label and focus ring.
 - **Original art**, pure inline vector, no scripts or external references; a reference image is never embedded,
@@ -200,7 +250,7 @@ These are what make a mascot welcome rather than annoying; preserve them through
 
 ### 7. Report back
 
-Tell the user which character (gallery, new or from their image), the mascot's name, the shortcut, where it hides, the keepsake, and how to change the duration.
+Tell the user which character (gallery, new or from their image), the mascot's name, the show/hide and power shortcuts, where it hides, the keepsake, and how to change the duration.
 If it replaced a mascot, say which one, what was kept, and any variable to rename in deployed environments. Include
 a screenshot path if you took one, and mention any edge you skipped because it would cover the UI.
 
@@ -209,6 +259,7 @@ a screenshot path if you took one, and mention any edge you skipped because it w
 - `assets/peekaboo.ts`: placement, routine, keepsake, toggle (framework-free, no dependencies)
 - `assets/peekaboo.css`: clipping, rise/sink, look, blink, twitch, reduced motion
 - `assets/characters/<id>/`: gallery characters (Kei, Mochi, Bolt): SVG, `character.json`, optional CSS
+- `src/optional/mascot/` (in the target app): recommended optional feature folder with a single mount/unmount boundary
 - `scripts/check_mascot_svg.py`: validates an SVG against the parts contract
 - `scripts/check_reference_image.py`: technical check of a user's reference image (format, size, dimensions)
 - `scripts/find_mascot.py`: finds a mascot already in the project, or leftovers of a replaced one (`--name`)
@@ -217,5 +268,6 @@ a screenshot path if you took one, and mention any edge you skipped because it w
 - `references/character-design.md`: drawing guide for chibi and realistic styles, parts contract, originality
 - `references/from-image.md`: reading the user's image, eligibility, traits to keep, preview and cleanup
 - `references/replacing.md`: one mascot per app; replacing an installed or hand-built one
+- `references/updating.md`: offering and applying updates to an installed mascot, changelog, releasing a version
 - `references/testing.md`: deterministic browser tests
 - `references/case-study-kei.md`: the original mascot, its interview answers and lessons learned

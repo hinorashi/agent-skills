@@ -15,14 +15,17 @@ Timed animation and randomness make naive tests slow and flaky. Control both.
 
 1. **Off by default**: no visit after 60 s of fake time; the shortcut turns it on and a visit starts at once;
    pressing again hides it and stores `off`; after reload the stored choice wins.
-2. **Visit**: `.peekaboo-figure` gets `peeking`, then `data-look` left/right, then `blinking`, then `keepsake`.
-3. **Keepsake**: the grab area is visible, touches the edge it hides at, the keepsake part is inside the viewport while
+2. **Power switch**: powered on by default; the power shortcut (e.g. Alt+Shift+K) hides everything, shows one notice,
+   stores `off` under `<storageKey>-power`, and makes the show/hide shortcut do nothing; pressing it again restores
+   the previous show/hide state; after reload the stored power choice wins.
+3. **Visit**: `.peekaboo-figure` gets `peeking`, then `data-look` left/right, then `blinking`, then `keepsake`.
+4. **Keepsake**: the grab area is visible, touches the edge it hides at, the keepsake part is inside the viewport while
    the eyes (`.pb-eyes`) are clipped out of the frame; clicking replays the visit; after `keepsakeMs` the grab area is
    hidden.
-4. **No overlap**: run many visits (fake 15 minutes, seeded random) at 1280 and 1920 px wide and assert the frame's
+5. **No overlap**: run many visits (fake 15 minutes, seeded random) at 1280 and 1920 px wide and assert the frame's
    box never intersects any obstacle, using the same selector as the app.
-5. **No free spot**: in a tiny viewport (e.g. 420 × 320) turning it on shows exactly one notice and no mascot.
-6. **Reduced motion**: `page.emulateMedia({ reducedMotion: 'reduce' })` → no random visits.
+6. **No free spot**: in a tiny viewport (e.g. 420 × 320) turning it on shows exactly one notice and no mascot.
+7. **Reduced motion**: `page.emulateMedia({ reducedMotion: 'reduce' })` → no random visits.
 
 ## Overlap assertion snippet (Playwright)
 

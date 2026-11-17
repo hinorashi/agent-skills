@@ -12,7 +12,8 @@ python3 <skill-dir>/scripts/find_mascot.py <project-dir>
 ```
 
 - **PEEKABOO**: installed with this skill. The report shows the `createPeekaboo` call site with its name, character,
-  shortcut and storage key, the copied module (`[module]`), and the SVG and CSS files.
+  shortcut and storage key, the copied module (`[module <version>]`), the SVG and CSS files, and whether an update is
+  available (`references/updating.md`).
 - **POSSIBLE hand-built**: files with words like mascot, peek, keepsake or tuft in code. Read the top files to confirm
   it really is a mascot (a "peek" tooltip or a "mascot" image in the footer is not) and to learn its name, where it
   appears, its shortcut and its config.
@@ -29,8 +30,8 @@ Put the question in the same round as the character choice (SKILL.md step 1) so 
   different timing), offer that instead.
 - **Replace**: go on. Nothing is removed until the new character is approved (step 3 preview for new and image-based
   characters), so the old one keeps working while the user decides.
-- **Same character again** (Kei is installed and they pick Kei): this is an update, not a replacement. Refresh the
-  module and the character's files, keep the app's settings.
+- **Same character again** (Kei is installed and they pick Kei): this is an update, not a replacement. Follow
+  `references/updating.md`: refresh the module and the character's files, keep the app's settings.
 - **Several mascots found**: list them and confirm that all are replaced by the one new mascot.
 
 ## 3. Replace
@@ -40,7 +41,7 @@ and the code already rely on it. The character is what the user asked to change.
 
 | Keep (the slot) | Change (the character) |
 |---|---|
-| where it is created and destroyed (call site, mount/unmount) | SVG file and its import |
+| the optional folder and its single mount/unmount boundary | SVG file and its import |
 | `edges`, `obstacles`, `touchable`, `zIndex` | `name`, `character` |
 | `notify` wiring, the keepsake-time config and its validation | personality: `keepsake`, `interval`, `routine`, `accent` |
 | the shortcut, unless the user picks a new one (offer the new character's suggestion) | character CSS file (`<id>.css`) |
@@ -49,11 +50,13 @@ and the code already rely on it. The character is what the user asked to change.
 ### Installed with this skill
 
 1. Swap the character: add the new SVG (and CSS), update the `createPeekaboo` options from its `character.json`,
-   delete the old character's SVG and CSS.
+   delete the old character's SVG and CSS. Keep the app shell's one `mountMascot()` integration unchanged.
 2. Pin the storage key. The default key comes from `name` (`peekaboo-kei`), so a new name would silently turn the
    mascot off for everyone who had it on. Set `storageKey` to the old key, with a comment saying why.
 3. Refresh the module if the project's copy is older than `assets/peekaboo.ts` / `peekaboo.css`. Diff first: if the
    project changed it locally, show the user the differences and keep their changes unless they agree to drop them.
+4. Keep configuration, asset imports and app-specific adapters inside the optional mascot folder. Business features
+   must not import mascot code or assets.
 
 ### Hand-built (not this skill)
 
@@ -65,6 +68,13 @@ Replacing means removing the old implementation and installing the skill's modul
    tests and docs. They may have tweaks they want to keep.
 3. Remove it and wire the new mascot in its place (SKILL.md step 4). If it stored its on/off choice under a known
    key, pass that as `storageKey`, when it uses the same `'on'`/`'off'` values.
+
+### Removing the mascot later
+
+For an install following SKILL.md, remove the app shell's import and mount call for `mountMascot()`, then delete the
+optional mascot folder. Remove mascot-only config, tests and docs, and run the project's type check, build and
+relevant tests. The feature is not cleanly removable if business code imports its engine, stylesheet, SVG or config;
+move those references behind the optional folder's mount boundary first. Keep unrelated business behavior unchanged.
 
 ### Names in config and identifiers
 

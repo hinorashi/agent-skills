@@ -53,3 +53,11 @@ Actual cost depends on the model and its credit multiplier, how large the app is
 ```bash
 uvx --from "git+https://github.com/agentskills/agentskills#subdirectory=skills-ref" skills-ref validate skills/peekaboo
 ```
+
+## Releasing a new peekaboo version
+
+Installed apps keep their own copy of the mascot engine. When a change affects them, bump `metadata.version` in
+[SKILL.md](skills/peekaboo/SKILL.md) and `PEEKABOO_VERSION` in
+[peekaboo.ts](skills/peekaboo/assets/peekaboo.ts) to the same value, and add a changelog entry with the required app
+changes to [updating.md](skills/peekaboo/references/updating.md). The next time someone uses the skill in an app with an
+older mascot, it offers to update it.
