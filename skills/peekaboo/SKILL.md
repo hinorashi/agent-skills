@@ -1,11 +1,11 @@
 ---
 name: peekaboo
-description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, shows a preview page for approval, then wires it in. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
+description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, shows a preview page for approval, then wires it in, replacing an existing mascot if the user chooses. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
 license: MIT
 compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the SVG checker needs Python 3.
 metadata:
   author: hinorashi
-  version: "1.2.0"
+  version: "1.3.0"
 ---
 
 # Peekaboo mascot
@@ -36,7 +36,14 @@ Each folder holds `<id>.svg`, `character.json` (look, personality, keepsake, sug
 ### 1. Choose the character
 
 Look at the app first (layout files, header and main containers, existing shortcuts, toast system) so every question
-can come with a concrete default. Then ask, in one round (a structured question tool if you have one, otherwise one
+can come with a concrete default. Check for a mascot that is already installed:
+
+```bash
+python3 <skill-dir>/scripts/find_mascot.py <project-dir>
+```
+
+An app gets one mascot. If one is found, the round below also asks whether to **replace** it or **keep** it and stop
+(`references/replacing.md`). Then ask, in one round (a structured question tool if you have one, otherwise one
 concise message), which mascot they want: **Kei**, **Mochi**, **Bolt** (one line each from the gallery), **create a
 new one** from a description, or **from your image** (attach it in the chat or give its path). Ask for the app-fitting fields from the table below in the same round. If the user already named a gallery
 character or fully described a new one, skip what is already answered.
@@ -53,6 +60,7 @@ Ask before drawing anything new. The character is personal, and guessing wastes 
 
 | Field | Notes | Default |
 |---|---|---|
+| *Existing mascot only:* **Replace it?** | replace, or keep it and stop | none, so ask |
 | **Character** | Kei, Mochi, Bolt, or new | none, so ask |
 | *Image only:* **Image** | attached in chat or a file path; PNG, JPEG, WebP, GIF | none, so ask |
 | *New only:* **Name** | used in labels, storage key, shortcut letter | none, so ask |
@@ -100,6 +108,9 @@ After approval, delete the preview (it holds a copy of the reference image). Gal
 unless the user asks to see one.
 
 ### 4. Wire it into the app
+
+Replacing a mascot? Follow `references/replacing.md` §3–4 instead of a fresh install: keep the app's slot (call site,
+edges, obstacles, shortcut, storage key, config), swap the character, then check nothing of the old one is left.
 
 1. Copy `assets/peekaboo.ts`, `assets/peekaboo.css` and the character's SVG (plus its CSS, if any) into the project
    (e.g. `src/mascot/`). Match the project's language (strip types for plain JS) and style conventions. Keep the
@@ -166,7 +177,8 @@ These are what make a mascot welcome rather than annoying; preserve them through
 
 ### 7. Report back
 
-Tell the user which character (gallery, new or from their image), the mascot's name, the shortcut, where it hides, the keepsake, and how to change the duration. Include
+Tell the user which character (gallery, new or from their image), the mascot's name, the shortcut, where it hides, the keepsake, and how to change the duration.
+If it replaced a mascot, say which one, what was kept, and any variable to rename in deployed environments. Include
 a screenshot path if you took one, and mention any edge you skipped because it would cover the UI.
 
 ## Files
@@ -176,9 +188,11 @@ a screenshot path if you took one, and mention any edge you skipped because it w
 - `assets/characters/<id>/`: gallery characters (Kei, Mochi, Bolt): SVG, `character.json`, optional CSS
 - `scripts/check_mascot_svg.py`: validates an SVG against the parts contract
 - `scripts/check_reference_image.py`: technical check of a user's reference image (format, size, dimensions)
+- `scripts/find_mascot.py`: finds a mascot already in the project, or leftovers of a replaced one (`--name`)
 - `scripts/make_preview.py`: standalone HTML preview of a character folder, for approval before wiring
 - `references/behavior.md`: lifecycle, placement math, invariants, personality tuning, gotchas
 - `references/character-design.md`: drawing guide, parts contract, originality
 - `references/from-image.md`: reading the user's image, eligibility, traits to keep, preview and cleanup
+- `references/replacing.md`: one mascot per app; replacing an installed or hand-built one
 - `references/testing.md`: deterministic browser tests
 - `references/case-study-kei.md`: the original mascot, its interview answers and lessons learned

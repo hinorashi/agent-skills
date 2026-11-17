@@ -6,7 +6,7 @@ Reusable [Agent Skills](https://agentskills.io/specification) by @hinorashi.
 
 | Skill | What it does |
 |---|---|
-| [peekaboo](skills/peekaboo/SKILL.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and it draws an original SVG, checking the image is eligible first and showing a preview page for your approval before touching your code. The mascot peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. |
+| [peekaboo](skills/peekaboo/SKILL.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and it draws an original SVG, checking the image is eligible first and showing a preview page for your approval before touching your code. The mascot peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. One mascot per app: if one is already installed, it asks whether to replace it. |
 
 ![Kei, Mochi and Bolt](docs/gallery.png)
 
@@ -18,6 +18,21 @@ npx skills add hinorashi/agent-skills --skill peekaboo
 
 Replace `hinorashi/agent-skills` with the GitHub `owner/repo` this is pushed to. Skills appear on
 [skills.sh](https://skills.sh) automatically once people install them with the `skills` CLI.
+
+### Install from a local checkout
+
+From the root of this repository, install the skill into the current project with the `skills` CLI:
+
+```bash
+npx skills add /home/quannt71/project/agent-skills/skills/peekaboo --skill peekaboo
+```
+
+For a personal installation without the CLI, copy the skill folder into GitHub Copilot's local skills directory:
+
+```bash
+mkdir -p ~/.copilot/skills
+cp -R /home/quannt71/project/agent-skills/skills/peekaboo ~/.copilot/skills/
+```
 
 ## Estimated cost
 
