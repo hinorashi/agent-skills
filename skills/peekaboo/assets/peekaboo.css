@@ -1,0 +1,30 @@
+/* Peekaboo mascot. The frame is placed in page coordinates by peekaboo.ts and clips the figure, so it rises from and sinks
+   back behind the edge it hides at. Keep its z-index (set from options.zIndex) below sticky headers and dialogs. */
+.peekaboo { position: absolute; top: 0; left: 0; overflow: hidden; pointer-events: none; }
+.peekaboo-pose { position: absolute; }
+.peekaboo-figure { display: block; transform: translateY(105%); transition: transform .5s cubic-bezier(.3, 1.4, .5, 1); }
+.peekaboo-figure.peeking { transform: none; }
+.peekaboo-figure.keepsake { transform: translateY(var(--peekaboo-sink)); }
+
+/* Invisible grab area over the keepsake; hovering or focusing it tugs the keepsake up a little. */
+.peekaboo-mark, .peekaboo-mark:hover { position: absolute; padding: 0; border: 0; border-radius: 6px 6px 0 0; background: none; cursor: grab; }
+.peekaboo-mark:active { cursor: grabbing; }
+.peekaboo-mark:focus-visible { outline: 2px solid #5368d6; outline-offset: 1px; }
+.peekaboo:has(+ .peekaboo-mark:is(:hover, :focus-visible)) .peekaboo-figure.keepsake { transform: translateY(calc(var(--peekaboo-sink) - 6px)); }
+
+/* Parts the SVG marks with pb-* classes. */
+.pb-face, .pb-pupils { transition: transform .15s ease-out; }
+.pb-eyes { transform-box: fill-box; transform-origin: center; }
+.peekaboo-figure[data-look=left] .pb-face { transform: translateX(-1.5px); }
+.peekaboo-figure[data-look=left] .pb-pupils { transform: translateX(-1.2px); }
+.peekaboo-figure[data-look=right] .pb-face { transform: translateX(1.5px); }
+.peekaboo-figure[data-look=right] .pb-pupils { transform: translateX(1.2px); }
+.peekaboo-figure.blinking .pb-eyes { animation: pb-blink .3s ease-in-out; }
+@keyframes pb-blink { 45%, 55% { transform: scaleY(.1); } }
+.peekaboo-figure.keepsake .pb-keepsake { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-twitch 2.4s ease-in-out infinite; }
+@keyframes pb-twitch { 0%, 78%, 100% { transform: none; } 84% { transform: rotate(-5deg); } 90% { transform: rotate(4deg); } 95% { transform: rotate(-2deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .peekaboo-figure { transition: none; }
+  .peekaboo-figure.keepsake .pb-keepsake { animation: none; }
+}
