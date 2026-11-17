@@ -1,0 +1,17 @@
+{
+  "id": "bolt",
+  "name": "Bolt",
+  "pronoun": "he",
+  "look": "Little robot with a rounded blue head, dark visor face, orange brows, ear bolts and a lightning badge; antenna with an orange ball.",
+  "personality": "curious",
+  "keepsake": "antenna",
+  "suggestedShortcut": { "code": "KeyB", "altKey": true },
+  "options": {
+    "width": 80,
+    "height": 100,
+    "keepsake": 18,
+    "interval": [10000, 32000],
+    "accent": "#ff8a1f",
+    "routine": [[600, "look"], [650, "look-back"], [550, "look-ahead"], [0, "tilt"], [600, "look-back"], [450, "look-ahead"], [250, "blink"], [320, "pause"], [450, "sink"]]
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "id": "mochi",
+  "name": "Mochi",
+  "pronoun": "she",
+  "look": "Chubby white cat with pink inner ears, rosy cheeks and a pink scarf.",
+  "personality": "shy",
+  "keepsake": "ears",
+  "suggestedShortcut": { "code": "KeyM", "altKey": true },
+  "options": {
+    "width": 80,
+    "height": 100,
+    "keepsake": 20,
+    "interval": [20000, 60000],
+    "accent": "#d1638f",
+    "routine": [[900, "look"], [450, "look-back"], [450, "look-ahead"], [300, "blink"], [320, "pause"], [250, "sink"]]
+  },
+  "css": "mochi.css"
+}

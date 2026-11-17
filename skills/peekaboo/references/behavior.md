@@ -30,18 +30,21 @@ stateDiagram-v2
     Hidden --> Off: shortcut turns off
 ```
 
-Default routine inside `visit()` (ms are waits before each step):
+A visit rises (`peeking`, 0.5 s springy transition), then plays `options.routine`: a list of
+`[wait before the step in ms, action]`. The default (`defaultRoutine`, Kei's) is:
 
-| Wait | Step |
-|---|---|
-| 0 | rise (`peeking`, 0.5 s springy transition) |
-| 700 | look one way at random (`data-look`) |
-| 800 | look the other way |
-| 800 | look ahead |
-| 250 | blink starts (`blinking`, 0.3 s scaleY on `.pb-eyes`) |
-| 320 | blink ends |
-| 450 | sink to keepsake position (or out of sight) |
-| 500 | keepsake grab area appears, expiry timer starts |
+| Wait | Action | Effect |
+|---|---|---|
+| 700 | `look` | glance left or right at random (`data-look`) |
+| 800 | `look-back` | glance the other way |
+| 800 | `look-ahead` | face forward |
+| 250 | `blink` | `blinking`: 0.3 s scaleY on `.pb-eyes` |
+| 320 | `pause` | just wait (ends the blink) |
+| 450 | `sink` | sink to the keepsake position (or out of sight) |
+| +500 | (settle) | keepsake grab area appears; it expires `keepsakeMs` after the sink started |
+
+`tilt` tilts `.pb-face` by -7°. `blink` and `tilt` last until the next step, and the look direction stays until it is
+changed. A routine that does not end with `sink` gets `[450, 'sink']` appended; unknown actions throw.
 
 Every await checks a run counter (`run`). Hiding or toggling bumps it, so an in-flight visit stops at its next step
 instead of fighting the new state. Keep this pattern when adding steps.
@@ -113,17 +116,21 @@ the default when invalid.
 
 ## 6. Personality: tuning the routine
 
-Personality lives in the `steps` array of `visit()`, the CSS transition curve, and the interval. Examples:
+Personality lives in options and a little scoped CSS, so the shared module never needs editing:
+`routine`, `interval` (time between visits), `keepsake` (how much stays above the edge), `accent` (focus ring),
+and transition curves in `.peekaboo[data-character=<id>] .peekaboo-figure` rules. The gallery shows three tunings:
+Kei (`defaultRoutine`), Mochi (`characters/mochi`: hesitant first look, quick glances, fast duck, rare visits) and
+Bolt (`characters/bolt`: two glance pairs with a head tilt, frequent visits). More ideas:
 
 | Trait | Adjustments |
 |---|---|
 | Shy | shorter looks (400–500 ms), quick sink, longer interval, smaller `keepsake` |
-| Curious | extra look pair, slight tilt (`rotate` on `.pb-face`), shorter interval |
+| Curious | extra look pair, a `tilt` step, shorter interval |
 | Sleepy | slow blink (0.6 s, two blinks), slower rise (`.8s ease-out`) |
 | Cheeky | wink (blink one eye: wrap each eye in its own group), bouncier spring curve |
 | Stoic | no head shift, only pupils move, single slow blink |
 
-Keep the whole visit under ~5 s and keep the run-counter checks.
+Keep the whole visit under ~5 s. If you add new actions to the module, keep the run-counter checks.
 
 ## 7. Accessibility and etiquette
 

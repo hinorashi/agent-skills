@@ -12,6 +12,19 @@ export interface EdgeSpec {
   inward?: boolean;
 }
 
+/**
+ * look: glance left or right at random · look-back: glance the other way · look-ahead: face forward ·
+ * blink / tilt: blink or tilt the head until the next step · pause: just wait · sink: hide (leaving the keepsake)
+ */
+export type RoutineAction = 'look' | 'look-back' | 'look-ahead' | 'blink' | 'tilt' | 'pause' | 'sink';
+export type RoutineStep = [ms: number, action: RoutineAction];
+
+/** Curious and a little wary: Kei's routine. About 3.3 s from rising to sinking. */
+export const defaultRoutine: RoutineStep[] = [
+  [700, 'look'], [800, 'look-back'], [800, 'look-ahead'], [250, 'blink'], [320, 'pause'], [450, 'sink'],
+];
+const routineActions = new Set<string>(['look', 'look-back', 'look-ahead', 'blink', 'tilt', 'pause', 'sink']);
+
 export interface PeekabooOptions {
   /** Display name used in labels and messages, e.g. "Kei". */
   name: string;
@@ -41,6 +54,12 @@ export interface PeekabooOptions {
   shortcut?: { code: string; altKey?: boolean; ctrlKey?: boolean; shiftKey?: boolean; metaKey?: boolean } | false;
   /** Whether the mascot is on before the user has toggled it. Default false. */
   enabledByDefault?: boolean;
+  /** Stable id for character-specific CSS (`.peekaboo[data-character=...]`). Default: the name in lowercase. */
+  character?: string;
+  /** What happens during a visit: [wait before the step in ms, action]. Ends with 'sink' (added if missing). */
+  routine?: RoutineStep[];
+  /** Focus ring color of the call-back grab area. Default #5368d6. */
+  accent?: string;
   /** Keep below sticky headers and dialogs. Default 10. */
   zIndex?: number;
   /** Shown only when the mascot is turned on but no free spot exists. Default console.info. */
@@ -78,6 +97,11 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   const storageKey = options.storageKey ?? `peekaboo-${options.name.toLowerCase().replace(/\W+/g, '-')}`;
   const touchable = options.touchable ?? options.edges.map(edge => edge.anchor).join(', ');
   const random = options.random ?? Math.random;
+  const routine = [...(options.routine ?? defaultRoutine)];
+  for (const [ms, action] of routine) {
+    if (!routineActions.has(action) || !(ms >= 0)) throw new Error(`Peekaboo: invalid routine step [${ms}, '${action}'].`);
+  }
+  if (routine.at(-1)?.[1] !== 'sink') routine.push([450, 'sink']);
   const notify = options.notify ?? (message => console.info(message));
   // The grab area over the keepsake, before rotation: base on the edge, most of the figure's width.
   const markWidth = Math.round(width * 0.75);
@@ -87,6 +111,7 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   frame.className = 'peekaboo';
   frame.setAttribute('aria-hidden', 'true');
   frame.dataset.name = options.name;
+  frame.dataset.character = options.character ?? options.name.toLowerCase().replace(/\W+/g, '-');
   frame.style.zIndex = String(options.zIndex ?? 10);
   const pose = document.createElement('div');
   pose.className = 'peekaboo-pose';
@@ -101,6 +126,7 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
   mark.className = 'peekaboo-mark';
   mark.hidden = true;
   mark.style.zIndex = frame.style.zIndex;
+  if (options.accent) mark.style.setProperty('--peekaboo-accent', options.accent);
   mark.setAttribute('aria-label', `Call ${options.name} back`);
   mark.title = `Pull ${options.name} back out`;
   document.body.append(frame, mark);
@@ -261,6 +287,23 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
     mark.hidden = true;
   }
 
+  function act(action: RoutineAction) {
+    // Blink and tilt last until the next step; the look direction stays until changed.
+    figure!.classList.remove('blinking', 'tilting');
+    const look = figure!.dataset.look;
+    if (action === 'look') figure!.dataset.look = random() < 0.5 ? 'left' : 'right';
+    else if (action === 'look-back') figure!.dataset.look = look === 'left' ? 'right' : look === 'right' ? 'left' : random() < 0.5 ? 'left' : 'right';
+    else if (action === 'look-ahead') delete figure!.dataset.look;
+    else if (action === 'blink') figure!.classList.add('blinking');
+    else if (action === 'tilt') figure!.classList.add('tilting');
+    else if (action === 'sink') {
+      // Sinks straight to the keepsake position, or out of sight when there is no keepsake.
+      delete figure!.dataset.look;
+      figure!.classList.remove('peeking');
+      if (keepsake > 0) figure!.classList.add('keepsake');
+    }
+  }
+
   async function visit(target: Spot) {
     const box = windowFor(target, false);
     if (busy || destroyed || !box) return false;
@@ -272,19 +315,10 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
     figure!.classList.remove('keepsake');
     figure!.classList.add('peeking');
     const current = ++run;
-    const steps: [number, () => void][] = [
-      [700, () => { figure!.dataset.look = random() < 0.5 ? 'left' : 'right'; }],
-      [800, () => { figure!.dataset.look = figure!.dataset.look === 'left' ? 'right' : 'left'; }],
-      [800, () => { delete figure!.dataset.look; }],
-      [250, () => figure!.classList.add('blinking')],
-      [320, () => figure!.classList.remove('blinking')],
-      // Sinks straight to the keepsake position, or out of sight when there is no keepsake.
-      [450, () => { figure!.classList.remove('peeking'); if (keepsake > 0) figure!.classList.add('keepsake'); }],
-    ];
-    for (const [ms, act] of steps) {
+    for (const [ms, action] of routine) {
       await wait(ms);
       if (current !== run) return true;
-      act();
+      act(action);
     }
     // The grab area appears once the sink transition settles; the keepsake time counts from when it started sinking.
     const settle = 500;
@@ -304,7 +338,7 @@ export function createPeekaboo(options: PeekabooOptions): Peekaboo {
     run++;
     busy = false;
     delete figure!.dataset.look;
-    figure!.classList.remove('blinking', 'peeking');
+    figure!.classList.remove('blinking', 'tilting', 'peeking');
     forgetMark();
   }
 

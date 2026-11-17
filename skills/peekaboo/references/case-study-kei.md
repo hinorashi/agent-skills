@@ -34,6 +34,7 @@ divider. Use this as a worked example of the interview answers turning into code
 ```ts
 createPeekaboo({
   name: 'Kei',
+  character: 'kei',          // gallery id; routine/interval/accent come from characters/kei/character.json
   svg: keiSvg,
   edges: [
     { anchor: 'header', side: 'bottom', inward: true },  // header-up

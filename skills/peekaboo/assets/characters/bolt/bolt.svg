@@ -1,0 +1,29 @@
+<!-- Bolt: an original little robot (blue body, orange accents); curious. viewBox 40×50 → shown at 80×100.
+     The antenna (pb-keepsake) is the top-most part, so it is what stays above the edge after he hides. -->
+<svg viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">
+  <rect fill="#2563d9" stroke="#163f94" stroke-width=".8" x="8" y="38" width="24" height="14" rx="5" />
+  <path fill="#ff8a1f" d="M21.5 40l-4 5h2.6l-1.6 4.5 4.5-5.6h-2.7l1.7-3.9Z" />
+  <rect fill="#8aa0c8" x="16" y="35" width="8" height="4" rx="1" />
+  <circle fill="#ff8a1f" stroke="#c45f00" stroke-width=".6" cx="6.2" cy="25" r="2.4" />
+  <circle fill="#ff8a1f" stroke="#c45f00" stroke-width=".6" cx="33.8" cy="25" r="2.4" />
+  <rect fill="#4a8cff" stroke="#163f94" stroke-width=".9" x="7" y="11" width="26" height="25" rx="7" />
+  <rect fill="#0f1a33" x="10" y="16.5" width="20" height="16" rx="5" />
+  <g class="pb-face">
+    <path stroke="#ff8a1f" stroke-width="1.2" stroke-linecap="round" d="M12.2 19.6l4.4-1M27.8 19.6l-4.4-1" />
+    <g class="pb-eyes">
+      <ellipse fill="#fff" cx="15" cy="24.5" rx="3.3" ry="3.5" />
+      <ellipse fill="#fff" cx="25" cy="24.5" rx="3.3" ry="3.5" />
+      <g class="pb-pupils" fill="#0f1a33">
+        <circle cx="15" cy="24.9" r="1.8" />
+        <circle cx="25" cy="24.9" r="1.8" />
+      </g>
+    </g>
+    <path fill="none" stroke="#ff8a1f" stroke-width="1" stroke-linecap="round" d="M17.6 29.6q2.4 1.6 4.8 0" />
+  </g>
+  <g class="pb-keepsake">
+    <path fill="#2563d9" stroke="#163f94" stroke-width=".7" d="M16.5 11.5q0-3 3.5-3t3.5 3Z" />
+    <rect fill="#8aa0c8" x="19.2" y="3.5" width="1.6" height="6" rx=".8" />
+    <circle fill="#ff8a1f" stroke="#c45f00" stroke-width=".7" cx="20" cy="3.2" r="2.8" />
+    <circle fill="#ffd2a6" cx="19" cy="2.3" r=".8" />
+  </g>
+</svg>

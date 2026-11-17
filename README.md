@@ -4,7 +4,9 @@ Reusable [Agent Skills](https://agentskills.io/specification) by @hinorashi.
 
 | Skill | What it does |
 |---|---|
-| [peekaboo](skills/peekaboo/SKILL.md) | Interviews you for a mascot (name, look, personality, keepsake), draws an original SVG character and wires it into your web app: it peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. |
+| [peekaboo](skills/peekaboo/SKILL.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt) or describe a new one and it draws an original SVG. The mascot peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. |
+
+![Kei, Mochi and Bolt](docs/gallery.png)
 
 ## Install
 

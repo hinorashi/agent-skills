@@ -9,7 +9,7 @@
 /* Invisible grab area over the keepsake; hovering or focusing it tugs the keepsake up a little. */
 .peekaboo-mark, .peekaboo-mark:hover { position: absolute; padding: 0; border: 0; border-radius: 6px 6px 0 0; background: none; cursor: grab; }
 .peekaboo-mark:active { cursor: grabbing; }
-.peekaboo-mark:focus-visible { outline: 2px solid #5368d6; outline-offset: 1px; }
+.peekaboo-mark:focus-visible { outline: 2px solid var(--peekaboo-accent, #5368d6); outline-offset: 1px; }
 .peekaboo:has(+ .peekaboo-mark:is(:hover, :focus-visible)) .peekaboo-figure.keepsake { transform: translateY(calc(var(--peekaboo-sink) - 6px)); }
 
 /* Parts the SVG marks with pb-* classes. */
@@ -19,6 +19,8 @@
 .peekaboo-figure[data-look=left] .pb-pupils { transform: translateX(-1.2px); }
 .peekaboo-figure[data-look=right] .pb-face { transform: translateX(1.5px); }
 .peekaboo-figure[data-look=right] .pb-pupils { transform: translateX(1.2px); }
+.pb-face { transform-box: fill-box; transform-origin: center; }
+.peekaboo-figure.tilting .pb-face { transform: rotate(-7deg); transition-duration: .25s; }
 .peekaboo-figure.blinking .pb-eyes { animation: pb-blink .3s ease-in-out; }
 @keyframes pb-blink { 45%, 55% { transform: scaleY(.1); } }
 .peekaboo-figure.keepsake .pb-keepsake { transform-box: fill-box; transform-origin: 50% 100%; animation: pb-twitch 2.4s ease-in-out infinite; }

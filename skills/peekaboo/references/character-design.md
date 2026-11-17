@@ -58,7 +58,13 @@ Draw an original figure. When the user names an existing character (anime, game,
 chibi from generic traits (hair style, outfit colors, a prop) rather than tracing, copying or reproducing official
 artwork, logos or exact costume designs. Say so in a short comment at the top of the SVG.
 
-## Example
+## Examples
 
-`assets/examples/kei.svg`: a black-suited boy with spiky hair inspired by Gantz; the hair is the keepsake.
-`references/case-study-kei.md` describes how it was built and tuned.
+The gallery in `assets/characters/` has three complete drawings with different keepsakes:
+
+- `kei/kei.svg`: a black-suited boy with spiky hair inspired by Gantz; the hair is the keepsake
+  (`references/case-study-kei.md` describes how it was built and tuned).
+- `mochi/mochi.svg`: a chubby white cat with a pink scarf; the ears are the keepsake, drawn as one `pb-keepsake` group.
+- `bolt/bolt.svg`: a blue robot with orange accents; the antenna (stem, ball and base) is the keepsake.
+
+A new character should get the same folder shape: `<id>.svg`, a `character.json` like theirs, and optional `<id>.css`.

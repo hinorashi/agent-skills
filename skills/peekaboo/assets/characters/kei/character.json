@@ -1,0 +1,17 @@
+{
+  "id": "kei",
+  "name": "Kei",
+  "pronoun": "he",
+  "look": "Chibi boy in a black suit with a collar and a small grey chest node, spiky black hair. Inspired by Kei Kurono (Gantz); original drawing.",
+  "personality": "curious but wary",
+  "keepsake": "spiky hair tuft",
+  "suggestedShortcut": { "code": "KeyK", "altKey": true },
+  "options": {
+    "width": 80,
+    "height": 100,
+    "keepsake": 14,
+    "interval": [12000, 42000],
+    "accent": "#5368d6",
+    "routine": [[700, "look"], [800, "look-back"], [800, "look-ahead"], [250, "blink"], [320, "pause"], [450, "sink"]]
+  }
+}
