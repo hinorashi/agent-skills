@@ -1,6 +1,7 @@
 {
   "id": "bolt",
   "name": "Bolt",
+  "style": "chibi",
   "pronoun": "he",
   "look": "Little robot with a rounded blue head, dark visor face, orange brows, ear bolts and a lightning badge; antenna with an orange ball.",
   "personality": "curious",

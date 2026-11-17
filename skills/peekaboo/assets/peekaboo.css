@@ -15,10 +15,10 @@
 /* Parts the SVG marks with pb-* classes. */
 .pb-face, .pb-pupils { transition: transform .15s ease-out; }
 .pb-eyes { transform-box: fill-box; transform-origin: center; }
-.peekaboo-figure[data-look=left] .pb-face { transform: translateX(-1.5px); }
-.peekaboo-figure[data-look=left] .pb-pupils { transform: translateX(-1.2px); }
-.peekaboo-figure[data-look=right] .pb-face { transform: translateX(1.5px); }
-.peekaboo-figure[data-look=right] .pb-pupils { transform: translateX(1.2px); }
+.peekaboo-figure[data-look=left] .pb-face { transform: translateX(calc(-1 * var(--peekaboo-look-face, 1.5px))); }
+.peekaboo-figure[data-look=left] .pb-pupils { transform: translateX(calc(-1 * var(--peekaboo-look-pupils, 1.2px))); }
+.peekaboo-figure[data-look=right] .pb-face { transform: translateX(var(--peekaboo-look-face, 1.5px)); }
+.peekaboo-figure[data-look=right] .pb-pupils { transform: translateX(var(--peekaboo-look-pupils, 1.2px)); }
 .pb-face { transform-box: fill-box; transform-origin: center; }
 .peekaboo-figure.tilting .pb-face { transform: rotate(-7deg); transition-duration: .25s; }
 .peekaboo-figure.blinking .pb-eyes { animation: pb-blink .3s ease-in-out; }

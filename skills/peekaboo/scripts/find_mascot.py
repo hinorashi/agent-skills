@@ -23,6 +23,7 @@ import sys
 SKIP_DIRS = {'node_modules', '.git', 'dist', 'build', 'out', '.next', '.nuxt', '.svelte-kit', '.output', 'coverage',
              'vendor', '.venv', 'venv', '__pycache__', '.cache', '.turbo', '.vercel', 'playwright-report',
              'test-results'}
+SKIP_FILES = {'skills-lock.json', 'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml'}
 TEXT_EXT = {'.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.vue', '.svelte', '.astro', '.html', '.htm', '.css',
             '.scss', '.sass', '.less', '.svg', '.json', '.md', '.mdx', '.txt', '.yml', '.yaml', '.toml', '.py',
             '.rb', '.php', '.erb', '.ejs', '.hbs', '.njk', '.liquid'}
@@ -41,8 +42,13 @@ CALL_FIELDS = {
 
 def project_files(root):
     for base, dirs, files in os.walk(root):
+        if 'SKILL.md' in files and os.path.abspath(base) != os.path.abspath(root):
+            dirs[:] = []
+            continue  # an installed agent skill (this one included), not app code
         dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
         for name in sorted(files):
+            if name in SKIP_FILES:
+                continue
             path = os.path.join(base, name)
             if os.path.splitext(name)[1].lower() in TEXT_EXT or ENV_FILE.match(name):
                 try:

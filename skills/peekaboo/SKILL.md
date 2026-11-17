@@ -1,11 +1,11 @@
 ---
 name: peekaboo
-description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, shows a preview page for approval, then wires it in, replacing an existing mascot if the user chooses. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
+description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, in chibi or realistic style, shows a preview page for approval, then wires it in, replacing an existing mascot if the user chooses. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
 license: MIT
 compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the SVG checker needs Python 3.
 metadata:
   author: hinorashi
-  version: "1.3.0"
+  version: "1.4.0"
 ---
 
 # Peekaboo mascot
@@ -42,48 +42,60 @@ can come with a concrete default. Check for a mascot that is already installed:
 python3 <skill-dir>/scripts/find_mascot.py <project-dir>
 ```
 
-An app gets one mascot. If one is found, the round below also asks whether to **replace** it or **keep** it and stop
-(`references/replacing.md`). Then ask, in one round (a structured question tool if you have one, otherwise one
-concise message), which mascot they want: **Kei**, **Mochi**, **Bolt** (one line each from the gallery), **create a
-new one** from a description, or **from your image** (attach it in the chat or give its path). Ask for the app-fitting fields from the table below in the same round. If the user already named a gallery
-character or fully described a new one, skip what is already answered.
+An app gets one mascot. If one is found, the first form also asks whether to **replace** it or **keep** it and stop
+(`references/replacing.md`).
+
+Then ask everything in **one form** (a structured question tool if you have one, otherwise one concise message with
+numbered questions), with the defaults filled in from the app. Which mascot: **Kei**, **Mochi**, **Bolt** (one line
+each from the gallery), **create a new one** from a description, or **from your image**. Add the fields from the
+table below in the same form, marking which apply only to a new or image-based mascot. Skip whatever the user already
+answered.
 
 - **Gallery character**: use it as is. Offer light customization (rename, recolor, different keepsake time), but keep
   its personality options unless asked. Skip steps 2 and 3.
-- **New character**: also collect the character fields below, then do steps 2 and 3.
-- **From your image**: get the image and check it is eligible before anything else (`references/from-image.md`
-  §1–2). Then propose the character fields from the picture instead of asking for them, and do steps 2 and 3.
-  If the user attached an image without asking, this is the option they mean. A gallery character the user wants to
-  change heavily (new species, new keepsake) counts as new; start from its files.
+- **New character**: do steps 2 and 3.
+- **From your image**: if the image is not already in the chat, the form says to attach it to the reply or give its
+  path (forms usually take text only, so say this plainly). Check it is eligible as soon as you see it
+  (`references/from-image.md` §1–2), then do steps 2 and 3. If the user attached an image without asking, this is
+  the option they mean. A gallery character the user wants to change heavily (new species, new keepsake) counts as
+  new; start from its files.
 
-Ask before drawing anything new. The character is personal, and guessing wastes a round of revisions.
+Collect the permission for a real person in this form too, not in a later round: it costs nothing when the image is a
+pet and saves a round when it is a person.
 
 | Field | Notes | Default |
 |---|---|---|
 | *Existing mascot only:* **Replace it?** | replace, or keep it and stop | none, so ask |
-| **Character** | Kei, Mochi, Bolt, or new | none, so ask |
-| *Image only:* **Image** | attached in chat or a file path; PNG, JPEG, WebP, GIF | none, so ask |
-| *New only:* **Name** | used in labels, storage key, shortcut letter | none, so ask |
+| **Character** | Kei, Mochi, Bolt, new, or from your image | none, so ask |
+| *New / image:* **Style** | **chibi** (big head, simple shapes) or **realistic** (natural proportions, shading); realistic only for animals, objects, the user's own drawings and the user themselves (`references/from-image.md` §2) | chibi |
+| *Image only:* **Image path** | optional when attached; a path lets the preview show it side by side | blank |
+| *Image only:* **Who is in it** | no person (pet, object, drawing), it's me, or someone who gave permission | none, so ask |
+| *New / image:* **Name** | used in labels, storage key, shortcut letter; for a pet, its name | from the image or ask |
 | *New only:* **Look** | species/type, colors/outfit, signature feature | none, so ask |
-| *New only:* **Personality** | e.g. shy, curious, sleepy, cheeky, stoic | curious |
-| *New only:* **Keepsake** | the part left above the edge: hair tuft, ears, antenna, hat tip… or none | top-most signature feature |
+| *New / image:* **Personality** | e.g. shy, curious, sleepy, cheeky, stoic | curious |
+| *New / image:* **Keepsake** | the part left above the edge: hair tuft, ears, antenna, hat tip… or none | top-most signature feature |
 | **Where to hide** | header, sidebar, panels, footer, cards… | propose from the app's layout |
 | **Shortcut** | toggle key | the character's suggested one, else Alt + first letter, if free |
 | **Keepsake time** | seconds the keepsake stays | 10 s, configurable |
-| **Size** | upright size in px | 80 × 100 |
+| **Size** | upright size in px | 80 × 100 chibi, 120 × 150 realistic |
 
-If the user names an existing character from an anime, game or brand, confirm you will draw an original
+Use plain words in forms and chat ("charcoal hair, dark denim"), not hex codes; the preview shows the colors as
+swatches. If the user names an existing character from an anime, game or brand, say you will draw an original
 "inspired-by" chibi, not a copy of official art.
 
 ### 2. Draw a new character
 
-From an image, first follow `references/from-image.md` §3: confirm the traits, palette, keepsake and name with the
-user before drawing. Draft new characters in a scratch folder outside the app's source tree
-(`<temp-dir>/peekaboo-<id>/`, gallery shape: `<id>.svg`, `character.json`, optional `<id>.css`) so nothing touches the
-app before approval.
+Draw straight away; the preview is where the user approves the result, so there is no separate round to confirm the
+concept. Only ask first when something cannot be read from the answers or the image (which of two pets, which
+outfit). From an image, pick the traits, palette and keepsake per `references/from-image.md` §3.
 
-Read `references/character-design.md`. Write the SVG with the `pb-face`, `pb-eyes`, `pb-pupils` and `pb-keepsake`
-parts, a viewBox matching the size ratio (40 × 50 for 80 × 100), and the keepsake reaching the top. Validate it:
+Draft in a scratch folder outside the app's source tree (`<temp-dir>/peekaboo-<id>/`, gallery shape: `<id>.svg`,
+`character.json` with a `style` and a named `palette`, optional `<id>.css`) so nothing touches the app before
+approval.
+
+Read `references/character-design.md` (it covers both styles). Write the SVG with the `pb-face`, `pb-eyes`,
+`pb-pupils` and `pb-keepsake` parts, a viewBox matching the size ratio (40 × 50 for 80 × 100), and the keepsake
+reaching the top. Validate it:
 
 ```bash
 python3 <skill-dir>/scripts/check_mascot_svg.py path/to/mascot.svg --width 80 --height 100
@@ -95,17 +107,28 @@ a gallery `character.json` (`references/behavior.md` §6), so the shared module 
 
 ### 3. Preview and approve
 
-For a new or image-based character, build a standalone preview page and get a yes before touching the app:
+For a new or image-based character, build the preview and serve it, in the background, so it opens in any browser
+(built-in browsers often block `file://` pages):
 
 ```bash
-python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> [--reference path/to/image.png]
+python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> [--reference path/to/image.png] --serve
 ```
 
-It shows the reference next to the drawing, the mascot at 2x and actual size, every pose, the keepsake at an edge,
-a live peek playing the routine, and the parts check. Look at it yourself first (browser tool screenshot if you
-have one), then give the user the file path and ask for **approve** or changes. Redraw and rebuild per round.
-After approval, delete the preview (it holds a copy of the reference image). Gallery characters skip this step
-unless the user asks to see one.
+It prints the file path, then a `http://127.0.0.1:<port>/` URL that serves only that page. The page shows the
+reference next to the drawing, the mascot at 2x and actual size, the colors as swatches, every pose, the keepsake at an
+edge, a live peek playing the routine, and the parts check. Open the URL in your browser tool if you have one and look
+at it before the user does. Without a reference path (the image was only attached to the chat), the page simply has
+no reference column.
+
+Then ask for approval with a form, not a free-text "reply approve":
+
+- **Approve**: add it to the app (step 4).
+- **Change something**: with a text field for what to change. Redraw, rebuild and ask again.
+- **Cancel**: leave the app as it is.
+
+Put the link to the page (URL and file path) and a one-line summary (name, style, keepsake, 3–5 traits in plain words)
+in the question. When done, stop the server and delete the scratch folder and the preview: the preview holds a copy of
+the reference image. Gallery characters skip this step unless the user asks to see one.
 
 ### 4. Wire it into the app
 
@@ -189,9 +212,9 @@ a screenshot path if you took one, and mention any edge you skipped because it w
 - `scripts/check_mascot_svg.py`: validates an SVG against the parts contract
 - `scripts/check_reference_image.py`: technical check of a user's reference image (format, size, dimensions)
 - `scripts/find_mascot.py`: finds a mascot already in the project, or leftovers of a replaced one (`--name`)
-- `scripts/make_preview.py`: standalone HTML preview of a character folder, for approval before wiring
+- `scripts/make_preview.py`: standalone HTML preview of a character folder (`--serve` for a localhost URL), for approval before wiring
 - `references/behavior.md`: lifecycle, placement math, invariants, personality tuning, gotchas
-- `references/character-design.md`: drawing guide, parts contract, originality
+- `references/character-design.md`: drawing guide for chibi and realistic styles, parts contract, originality
 - `references/from-image.md`: reading the user's image, eligibility, traits to keep, preview and cleanup
 - `references/replacing.md`: one mascot per app; replacing an installed or hand-built one
 - `references/testing.md`: deterministic browser tests

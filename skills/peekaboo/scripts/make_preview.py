@@ -3,17 +3,20 @@
 
 The character folder has the gallery shape: <id>.svg, character.json and an optional <id>.css.
 The page shows the reference image (if given) next to the drawing, every pose at 2x and actual size, the
-SVG checker result, and a live peek demo that plays the character's routine. It needs no server or network.
+SVG checker result, the color palette as swatches, and a live peek demo that plays the character's routine.
+The file works offline; --serve also serves it on http://127.0.0.1 for browsers or tools that block file:// pages.
 
-Usage: make_preview.py path/to/character-dir [--reference image.png] [--out preview.html]
-Prints the path of the written HTML file.
+Usage: make_preview.py path/to/character-dir [--reference image.png] [--out preview.html] [--serve [--port N]]
+Prints the path of the written HTML file (and the URL with --serve, which then runs until stopped).
 """
 import argparse
 import base64
 import html
+import http.server
 import json
 import mimetypes
 import os
+import re
 import subprocess
 import sys
 
@@ -48,7 +51,57 @@ def data_uri(path):
         return f"data:{mime};base64,{base64.b64encode(f.read()).decode()}"
 
 
+def palette(meta, svg):
+    """[(name, hex)]: character.json "palette" if given, else the most used hex colors in the SVG."""
+    given = meta.get("palette")
+    if isinstance(given, list) and given:
+        out = []
+        for item in given:
+            if isinstance(item, dict) and isinstance(item.get("hex"), str):
+                out.append((str(item.get("name", "")), item["hex"]))
+            elif isinstance(item, str):
+                out.append(("", item))
+        return out[:10]
+    counts = {}
+    for color in re.findall(r'(?:fill|stroke|stop-color)\s*[=:]\s*"?\s*(#[0-9a-fA-F]{3,8})\b', svg):
+        color = color.lower()
+        if len(color) == 4:
+            color = "#" + "".join(ch * 2 for ch in color[1:])
+        counts[color] = counts.get(color, 0) + 1
+    return [("", c) for c, _ in sorted(counts.items(), key=lambda kv: -kv[1])[:8]]
+
+
+def serve(page, port):
+    """Serve only this page on 127.0.0.1 (nothing else from disk) until interrupted."""
+    body = page.encode("utf-8")
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            if self.path.split("?")[0] not in ("/", "/preview.html"):
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    with http.server.ThreadingHTTPServer(("127.0.0.1", port), Handler) as server:
+        print(f"http://127.0.0.1:{server.server_address[1]}/", flush=True)
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            pass
+
+
 def figure(svg, w, h, classes="", attrs="", style=""):
+    own = re.match(r'(<svg\b[^>]*?)\sstyle="([^"]*)"', svg)
+    if own:  # keep the drawing's own style (e.g. --peekaboo-look-face) and add ours after it
+        svg = own.group(1) + svg[own.end():]
+        style = own.group(2).rstrip("; ") + ("; " + style if style else "")
     sized = svg.replace("<svg", f'<svg width="{w}" height="{h}"', 1)
     return sized.replace("<svg", f'<svg class="peekaboo-figure {classes}" {attrs} style="{style}"', 1)
 
@@ -58,6 +111,8 @@ def main():
     parser.add_argument("character", help="character folder, or its character.json")
     parser.add_argument("--reference", help="the user's reference image, shown side by side")
     parser.add_argument("--out", help="output HTML (default: preview.html in the character folder)")
+    parser.add_argument("--serve", action="store_true", help="also serve the page on 127.0.0.1 until stopped")
+    parser.add_argument("--port", type=int, default=0, help="port for --serve (default: any free port)")
     args = parser.parse_args()
 
     folder = os.path.dirname(args.character) if args.character.endswith(".json") else args.character
@@ -91,6 +146,7 @@ def main():
                      f'<figcaption>Reference image</figcaption></figure>')
 
     facts = {
+        "Style": meta.get("style", "chibi"),
         "Look": meta.get("look", ""), "Personality": meta.get("personality", ""),
         "Keepsake": meta.get("keepsake", ""), "Size": f"{w} x {h} px",
         "Visits every": f'{opts.get("interval", [12000, 42000])[0] // 1000}-{opts.get("interval", [12000, 42000])[1] // 1000} s',
@@ -99,6 +155,10 @@ def main():
             + [meta.get("suggestedShortcut", {}).get("code", "").replace("Key", "")]),
     }
     rows = "".join(f"<tr><th>{k}</th><td>{html.escape(str(v))}</td></tr>" for k, v in facts.items() if v)
+    swatches = "".join(
+        f'<figure class="swatch"><span style="background:{html.escape(c)}"></span>'
+        f'<figcaption>{html.escape(n) + "<br>" if n else ""}<code>{html.escape(c)}</code></figcaption></figure>'
+        for n, c in palette(meta, svg))
 
     page = f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>{html.escape(name)} preview</title>
@@ -119,6 +179,8 @@ figure {{ margin: 0; text-align: center; }} figcaption {{ font-size: 12px; color
 .edge {{ border-bottom: 3px solid #8a94ad; }}
 .clip {{ position: absolute; inset: auto 0 0 0; overflow: hidden; }}
 .ref {{ max-width: 240px; max-height: 240px; border-radius: 8px; box-shadow: 0 1px 4px #0003; }}
+.swatch span {{ display: block; width: 44px; height: 44px; border-radius: 8px; box-shadow: inset 0 0 0 1px #0003; }}
+.swatch code {{ font-size: 11px; color: #889; }}
 .check {{ padding: 8px 12px; border-radius: 6px; white-space: pre-wrap; font: 12px ui-monospace, monospace; }}
 .check.ok {{ background: #e3f6e8; color: #1c5a2c; }} .check.bad {{ background: #fde6e6; color: #8a1f1f; }}
 table {{ border-collapse: collapse; }} th {{ text-align: left; padding: 2px 16px 2px 0; color: #667; font-weight: 500; }}
@@ -135,8 +197,11 @@ button.ctl {{ font: inherit; padding: 4px 12px; border: 1px solid #8a94ad; borde
 </style></head>
 <body><main>
 <h1>{html.escape(name)}: preview</h1>
-<p class="note">Not added to your app yet. Look it over, then reply in the chat with "approve" or what to change.</p>
+<p class="note">Not added to your app yet. Look it over, then answer the approval question in the chat:
+approve, or say what to change.</p>
 <div class="row">{reference}{pose_card("2x", "", 2)}{pose_card("Actual size", "", 1)}<table>{rows}</table></div>
+<h2>Colors</h2>
+<div class="row">{swatches}</div>
 <h2>Poses</h2>
 <div class="row">{"".join(pose_card(label, attrs, 2) for label, attrs in poses)}{keepsake_card}</div>
 <h2>Live peek</h2>
@@ -187,7 +252,9 @@ visit();
     out = args.out or os.path.join(folder, "preview.html")
     with open(out, "w", encoding="utf-8") as f:
         f.write(page)
-    print(os.path.abspath(out))
+    print(os.path.abspath(out), flush=True)
+    if args.serve:
+        serve(page, args.port)
     return 0 if ok else 1
 
 
