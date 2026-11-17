@@ -17,6 +17,19 @@ npx skills add hinorashi/agent-skills --skill peekaboo
 Replace `hinorashi/agent-skills` with the GitHub `owner/repo` this is pushed to. Skills appear on
 [skills.sh](https://skills.sh) automatically once people install them with the `skills` CLI.
 
+## Estimated cost
+
+These are rough figures for one run of `peekaboo` with GitHub Copilot. The Bolt figure comes from a real run in
+another project. The others are scaled from how long the skill's test runs took, at about 16.5k tokens per credit.
+
+| Task | Tokens | Copilot credits |
+|---|---|---|
+| Answer the interview only (e.g. a vague request) | ~10k | < 1 |
+| Add a ready-made character (e.g. Bolt) | ~156k | ~9.5 |
+| Draw a new character and add it to a small app | ~115–160k | ~7–10 |
+
+Actual cost depends on the model and its credit multiplier, how large the app is, and how many follow-up tweaks you ask for.
+
 ## Validate
 
 ```bash
