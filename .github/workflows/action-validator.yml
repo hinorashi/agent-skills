@@ -1,6 +1,8 @@
 name: Validate GitHub Actions Workflows
 
-on: push
+on:
+  push:
+  workflow_dispatch:
 
 jobs:
   validate:
