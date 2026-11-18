@@ -1,0 +1,17 @@
+name: Hello CI
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  hello:
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "Hello from ${{ github.repository }} @ ${{ github.sha }}"
+          git --version
