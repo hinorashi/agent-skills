@@ -21,7 +21,8 @@ jobs:
     # Skip when this file is picked up by Gitea Actions on the upstream side.
     if: github.server_url == 'https://github.com'
     # 1 vCPU container runner with git preinstalled; jobs are capped at 15 minutes.
-    runs-on: ubuntu-slim
+    #runs-on: ubuntu-slim
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout destination
