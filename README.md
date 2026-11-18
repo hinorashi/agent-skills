@@ -113,3 +113,49 @@ Installed apps keep their own copy of the mascot engine. When a change affects t
 changes to [updating.md](skills/peekaboo/references/updating.md). Move the `[Unreleased]` notes in
 [CHANGELOG.md](skills/peekaboo/CHANGELOG.md) under the new version and update the version in the skill table above. The
 next time someone uses the skill in an app with an older mascot, it offers to update it.
+
+## Đồng bộ từ Gitea sang GitHub
+
+Kho gốc nằm trên [Gitea](https://gitea.com/hinorashi/agent-skills); bản trên
+[GitHub](https://github.com/hinorashi/agent-skills) được cập nhật bởi workflow
+[sync-from-gitea.yml](.github/workflows/sync-from-gitea.yml), chạy mỗi giờ (phút 17)
+hoặc chạy tay. Workflow dùng runner `ubuntu-slim` (container 1 vCPU, có sẵn git,
+giới hạn 15 phút) và chỉ chạy trên GitHub, tự bỏ qua nếu Gitea Actions đọc được tệp.
+
+Mỗi lần chạy, nhánh `main` trên GitHub được xử lý như sau:
+
+| Trạng thái | Hành động |
+|---|---|
+| Trùng với Gitea | Không làm gì |
+| Chậm hơn Gitea | Fast-forward rồi push |
+| Đi trước Gitea | Không làm gì |
+| Đã rẽ nhánh | Rebase commit riêng của GitHub lên Gitea rồi push `--force-with-lease`; nếu xung đột thì hủy rebase và báo lỗi để xử lý tay |
+
+Tag cũng được đồng bộ.
+
+### Cài đặt
+
+1. Trên GitHub, mở **Settings → Secrets and variables → Actions** của kho và thêm
+   repository secret:
+
+   | Secret | Bắt buộc | Nội dung |
+   |---|---|---|
+   | `GITEA_TOKEN` | Khi kho Gitea riêng tư | Gitea personal access token có quyền đọc kho (`read:repository`) |
+   | `GITEA_USER` | Không | Tên người dùng Gitea, mặc định `hinorashi` |
+   | `GH_SYNC_TOKEN` | Nên có | GitHub fine-grained token cho kho này với quyền **Contents** và **Workflows** ở mức *Read and write* |
+
+   `GITHUB_TOKEN` mặc định không được push commit có sửa tệp trong
+   `.github/workflows/`. Vì workflow này đến từ Gitea, thiếu `GH_SYNC_TOKEN` thì lần
+   đồng bộ đầu tiên và mọi lần sửa workflow sau đó sẽ bị từ chối.
+
+2. Commit workflow, push lên Gitea, rồi push một lần lên GitHub để workflow có mặt ở đó:
+
+   ```bash
+   git push origin main
+   git push https://github.com/hinorashi/agent-skills.git main
+   ```
+
+3. Trên GitHub, vào **Actions → Sync from Gitea → Run workflow** để chạy thử.
+
+Đổi kho nguồn, nhánh hoặc lịch chạy bằng `UPSTREAM_URL`, `BRANCH` và `cron` ở đầu
+workflow.

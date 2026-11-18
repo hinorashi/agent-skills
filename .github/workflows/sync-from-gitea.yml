@@ -1,0 +1,75 @@
+name: Sync from Gitea
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-from-gitea
+  cancel-in-progress: false
+
+env:
+  UPSTREAM_URL: https://gitea.com/hinorashi/agent-skills.git
+  BRANCH: main
+
+jobs:
+  sync:
+    # Skip when this file is picked up by Gitea Actions on the upstream side.
+    if: github.server_url == 'https://github.com'
+    # 1 vCPU container runner with git preinstalled; jobs are capped at 15 minutes.
+    runs-on: ubuntu-slim
+    timeout-minutes: 5
+    steps:
+      - name: Checkout destination
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+          # GITHUB_TOKEN cannot push commits that touch .github/workflows;
+          # set GH_SYNC_TOKEN (PAT with Contents + Workflows write) to allow that.
+          token: ${{ secrets.GH_SYNC_TOKEN || github.token }}
+
+      - name: Fetch upstream
+        env:
+          GITEA_USER: ${{ secrets.GITEA_USER || 'hinorashi' }}
+          GITEA_TOKEN: ${{ secrets.GITEA_TOKEN }}
+        run: |
+          git remote add upstream "$UPSTREAM_URL"
+          if [ -n "$GITEA_TOKEN" ]; then
+            auth=$(printf '%s:%s' "$GITEA_USER" "$GITEA_TOKEN" | base64 -w0)
+            echo "::add-mask::$auth"
+            git -c http.extraHeader="Authorization: Basic $auth" fetch --tags upstream "$BRANCH"
+          else
+            git fetch --tags upstream "$BRANCH"
+          fi
+
+      - name: Fast-forward or rebase
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          up="upstream/$BRANCH"
+          if [ "$(git rev-parse HEAD)" = "$(git rev-parse "$up")" ]; then
+            echo "Already in sync."
+          elif git merge-base --is-ancestor HEAD "$up"; then
+            echo "Fast-forwarding to $up"
+            git merge --ff-only "$up"
+            git push origin "HEAD:$BRANCH"
+          elif git merge-base --is-ancestor "$up" HEAD; then
+            echo "Destination is ahead of upstream; nothing to pull."
+          else
+            echo "Diverged; rebasing local commits onto $up"
+            before=$(git rev-parse HEAD)
+            if ! git rebase "$up"; then
+              git rebase --abort
+              echo "::error::Rebase onto $up has conflicts; resolve manually."
+              exit 1
+            fi
+            git push --force-with-lease="$BRANCH:$before" origin "HEAD:$BRANCH"
+          fi
+
+          git push origin --tags
