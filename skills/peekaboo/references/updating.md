@@ -75,3 +75,5 @@ No `PEEKABOO_VERSION`. Treat as older than 1.5.0 and apply every entry above.
 2. Add a changelog entry above with what changed and the **App changes** an installed mascot needs. Write "None"
    when copying the module is enough, so the update stays a one-step task.
 3. Docs-only changes that do not affect installed apps need no version bump.
+4. Record every user-facing change in `[Unreleased]` of `CHANGELOG.md` at the skill root, and move those notes under
+   the new version when bumping.

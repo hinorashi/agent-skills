@@ -1,0 +1,35 @@
+{
+  "skill_name": "changelog",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Cập nhật changelog cho phím Alt+Z mới. Unreleased đã ghi phím này; diff mới chỉ sửa tooltip và thêm test. Chạy lại quy trình hai lần.",
+      "expected_output": "Không thêm ghi chú trùng; chỉ chỉnh mục hiện có nếu thiếu thông tin được diff chứng minh. Không đổi phiên bản hoặc lịch sử.",
+      "files": [],
+      "assertions": [
+        "Hai lần chạy giữ nguyên số mục ghi chú cho Alt+Z.",
+        "Không tạo commit, tag, push hoặc thay đổi phiên bản."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Tổng hợp Unreleased từ bản phát hành gần nhất. Kho có tag 2.0.0 trên nhánh khác, tag 1.4.0 trên nhánh hiện tại, một tính năng đã revert và một sửa lỗi chưa commit.",
+      "expected_output": "Chọn mốc thuộc nhánh hiện tại; xác nhận diff cuối cùng; bỏ tính năng đã revert, ghi sửa lỗi đã xác minh và giữ thay đổi của người dùng.",
+      "files": [],
+      "assertions": [
+        "Không chọn tag chỉ vì có số phiên bản lớn nhất.",
+        "Không ghi tính năng đã hoàn tác như một tính năng mới."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Hãy cập nhật changelog cho refactor thuần nội bộ; repo đang dùng Changesets, không có CHANGELOG.md ở gốc. Tôi không muốn hook.",
+      "expected_output": "Tôn trọng Changesets và chính sách kho; nếu không có ảnh hưởng đáng chú ý thì không tạo ghi chú giả hoặc changelog cạnh tranh. Không cài hook.",
+      "files": [],
+      "assertions": [
+        "Không tạo CHANGELOG.md cạnh tranh với Changesets.",
+        "Không cài hook hoặc tự sửa chỉ dẫn thường trực."
+      ]
+    }
+  ]
+}
