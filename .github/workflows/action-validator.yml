@@ -1,10 +1,5 @@
 name: Validate GitHub Actions Workflows
 
-on:
-  pull_request:
-    paths:
-      - '.github/workflows/*.yml'
-
 jobs:
   validate:
     runs-on: ubuntu-latest
