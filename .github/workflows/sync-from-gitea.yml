@@ -2,7 +2,7 @@ name: Sync from Gitea
 
 on:
   schedule:
-    - cron: "17 * * * *"
+    - cron: "17 * * * *" # at 17 minutes past every hour
   workflow_dispatch:
 
 permissions:
@@ -21,8 +21,8 @@ jobs:
     # Skip when this file is picked up by Gitea Actions on the upstream side.
     if: github.server_url == 'https://github.com'
     # 1 vCPU container runner with git preinstalled; jobs are capped at 15 minutes.
-    #runs-on: ubuntu-slim
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
+    # runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Checkout destination
