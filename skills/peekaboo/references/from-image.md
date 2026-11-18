@@ -84,8 +84,9 @@ python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> --reference
 ```
 
 Run it in the background: it prints the file path and a `http://127.0.0.1:<port>/` URL, then serves only that page
-until stopped. Open the URL in a browser tool if you have one and check it yourself. Then ask for approval with a
-form (Approve / Change something + text / Cancel), giving the URL, the file path and a one-line summary in plain words.
+until stopped. Open the URL in a browser tool if you have one and check it yourself. Then ask for approval with the
+question from SKILL.md step 3 (options Approve and Cancel, plus the question's free-text box for typing what to
+change; no "Change something" option), giving the URL, the file path and a one-line summary in plain words.
 
 Redraw and rebuild for each round of changes. Only after approval copy the character into the app (SKILL.md step 4).
 Then stop the server and delete the scratch folder and the preview file, which holds a copy of the reference image.

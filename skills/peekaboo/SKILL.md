@@ -126,11 +126,20 @@ edge, a live peek playing the routine, and the parts check. Open the URL in your
 at it before the user does. Without a reference path (the image was only attached to the chat), the page simply has
 no reference column.
 
-Then ask for approval with a form, not a free-text "reply approve":
+Then ask for approval with **one single-choice question**, not a free-text "reply approve". It has exactly three
+ways to answer:
 
-- **Approve**: add it to the app (step 4).
-- **Change something**: with a text field for what to change. Redraw, rebuild and ask again.
-- **Cancel**: leave the app as it is.
+- **Approve** (option, default): add it to the app (step 4).
+- **Cancel** (option): leave the app as it is.
+- **The free-text box** (the question's own freeform input, e.g. `allowFreeformInput: true`): the user types what to
+  change. Any typed answer is a change request: redraw, rebuild the preview and ask again with the same question.
+
+Do **not** add a "Change something" option: picking an option never opens a text box, so the user ends up without a
+place to type. Say in the question message that typing in the box requests changes, e.g. "Approve, Cancel, or type
+what to change (e.g. smaller hat, warmer hair)." If the question tool has no freeform input, use two options and a
+plain-text line under the question saying to reply with the change instead. Never answer a change request by
+complaining that details are missing or by offering guessed options; if the typed text is unclear, make the most
+likely change and say what you changed.
 
 Put the link to the page (URL and file path) and a one-line summary (name, style, keepsake, 3–5 traits in plain words)
 in the question. When done, stop the server and delete the scratch folder and the preview: the preview holds a copy of
