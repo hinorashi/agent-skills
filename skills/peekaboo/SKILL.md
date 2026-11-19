@@ -1,8 +1,8 @@
 ---
 name: peekaboo
-description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from page edges at random free spots, looks around, blinks and hides. It leaves a keepsake (hair tuft, ears, hat tip) above the edge that users click to call it back. Never covers the UI; keyboard toggle. Offers ready-made characters (Kei, a spiky-haired boy; Mochi, a shy cat; Bolt, a robot), designs a new one from an interview, or turns the user's image (photo, pet, sketch, favorite character) into one after an eligibility check, in chibi or realistic style, previews it for approval, then wires it in, replacing an existing mascot if the user chooses. Can paint concept art first with an OpenAI or Bedrock image model. Offers to update a mascot installed by an older version of this skill. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
+description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from page edges, looks around, blinks and hides, leaving a clickable keepsake above the edge. Never covers the UI and supports keyboard shortcuts. Offers ready-made characters, an agent-drawn SVG, or a direct OpenAI-generated SVG, in chibi or realistic style. Can use the user's own image locally as a visual reference after an eligibility check. Previews for approval, then wires the feature behind one removable module boundary. Offers updates for older installed mascots. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or animated companion in a web app.
 license: MIT
-compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the scripts need Python 3. Optional concept art needs network access and an OpenAI or Amazon Bedrock key.
+compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the scripts need Python 3. AI SVG generation needs network access and an OpenAI key.
 metadata:
   author: hinorashi
   version: "1.5.0"
@@ -43,11 +43,10 @@ can come with a concrete default. Check for a mascot that is already installed:
 python3 <skill-dir>/scripts/find_mascot.py <project-dir>
 ```
 
-For a new or image-based character, also check which image-model credentials are available (optional concept art,
-`references/concept-art.md`):
+For a new or image-based character, check whether OpenAI credentials are available before offering AI SVG generation:
 
 ```bash
-python3 <skill-dir>/scripts/generate_concept.py --check
+python3 <skill-dir>/scripts/generate_vector.py --check
 ```
 
 An app gets one mascot. If one is found, the first form also asks whether to **replace** it or **keep** it and stop
@@ -87,9 +86,8 @@ pet and saves a round when it is a person.
 | *New only:* **Look** | species/type, colors/outfit, signature feature | none, so ask |
 | *New / image:* **Personality** | e.g. shy, curious, sleepy, cheeky, stoic | curious |
 | *New / image:* **Keepsake** | the part left above the edge: hair tuft, ears, antenna, hat tip… or none | top-most signature feature |
-| *New / image:* **Concept art** | paint a polished concept first with **OpenAI** or **Amazon Bedrock**, then redraw it as the SVG; say which providers were found in the environment and that the provider bills it (`references/concept-art.md` §1) | none |
-| *Concept art only:* **API key** | blank uses the environment; a pasted key is used for this run only, never saved | blank |
-| *Image + concept art:* **Send my image to the provider?** | yes for a closer likeness; no sends only a text description | no |
+| *New / image:* **Drawing method** | **Basic SVG** (the agent draws it, default, no paid call) or **AI SVG** (OpenAI Flare; Sunburst on request). AI SVG is billed by OpenAI and returns SVG directly; the reference image is not uploaded (`references/vector-upgrade.md` §1) | Basic SVG |
+| *AI SVG only:* **API key** | blank uses `OPENAI_API_KEY`; a pasted key is read on stdin for this run only, never saved | blank |
 | **Where to hide** | header, sidebar, panels, footer, cards… | propose from the app's layout |
 | **Shortcut** | show/hide key; the power key (turn it off entirely) is the same plus Shift | the character's suggested one, else Alt + first letter, if free (check the Shift variant too) |
 | **Keepsake time** | seconds the keepsake stays | 10 s, configurable |
@@ -99,22 +97,28 @@ Use plain words in forms and chat ("charcoal hair, dark denim"), not hex codes; 
 swatches. If the user names an existing character from an anime, game or brand, say you will draw an original
 "inspired-by" chibi, not a copy of official art.
 
-### 2. Draw a new character
+### 2. Create the mascot SVG
 
-Draw straight away; the preview is where the user approves the result, so there is no separate round to confirm the
-concept. Only ask first when something cannot be read from the answers or the image (which of two pets, which
+Create straight away; the preview is where the user approves the result, so there is no separate round to confirm
+the concept. Only ask first when something cannot be read from the answers or the image (which of two pets, which
 outfit). From an image, pick the traits, palette and keepsake per `references/from-image.md` §3.
 
 Draft in a scratch folder outside the app's source tree (`<temp-dir>/peekaboo-<id>/`, gallery shape: `<id>.svg`,
 `character.json` with a `style` and a named `palette`, optional `<id>.css`) so nothing touches the app before
 approval.
 
-If the user chose concept art, generate it first and draw from it (`references/concept-art.md` §2–4): keys go on
-stdin only, prompts name no franchise, brand or real person, and a failure falls back to drawing without it.
+The two drawing methods are mutually exclusive:
 
-Read `references/character-design.md` (it covers both styles). Write the SVG with the `pb-face`, `pb-eyes`,
-`pb-pupils` and `pb-keepsake` parts, a viewBox matching the size ratio (40 × 50 for 80 × 100), and the keepsake
-reaching the top. Validate it:
+- **Basic SVG**: read `references/character-design.md` and draw the SVG yourself. No concept image or paid request is
+  made.
+- **AI SVG**: turn the approved answers (or traits extracted from the local reference image) into a plain-language
+  brief, then generate SVG directly with `scripts/generate_vector.py --prompt ... --id ...`
+  (`references/vector-upgrade.md`). The SVG-generation endpoint takes text only, so do not upload the user's
+  reference image. Never put names of franchises, brands, studios, artists or real people in the prompt. If OpenAI
+  rejects the request or the answer fails adaptation, report one line and continue through the **Basic SVG** branch.
+
+Both branches must produce SVG with the `pb-face`, `pb-eyes`, `pb-pupils` and `pb-keepsake` parts, a viewBox matching
+the size ratio (40 × 50 for 80 × 100), and the keepsake reaching the top. Validate it:
 
 ```bash
 python3 <skill-dir>/scripts/check_mascot_svg.py path/to/mascot.svg --width 80 --height 100
@@ -130,14 +134,15 @@ For a new or image-based character, build the preview and serve it, in the backg
 (built-in browsers often block `file://` pages):
 
 ```bash
-python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> [--reference path/to/image.png] [--concept path/to/concept-1.png] --serve
+python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> [--reference path/to/image.png] --serve
 ```
 
 It prints the file path, then a `http://127.0.0.1:<port>/` URL that serves only that page. The page shows the
 reference next to the drawing, the mascot at 2x and actual size, the colors as swatches, every pose, the keepsake at an
 edge, a live peek playing the routine, and the parts check. Open the URL in your browser tool if you have one and look
 at it before the user does. Without a reference path (the image was only attached to the chat), the page simply has
-no reference column. `--concept` adds the generated concept art next to it.
+no reference column. There is no separate AI concept-art stage: the drawing shown in this preview is the mascot SVG
+that will be installed.
 
 Then ask for approval with **one single-choice question**, not a free-text "reply approve". It has exactly three
 ways to answer:
@@ -155,9 +160,9 @@ complaining that details are missing or by offering guessed options; if the type
 likely change and say what you changed.
 
 Put the link to the page (URL and file path) and a one-line summary (name, style, keepsake, 3–5 traits in plain words)
-in the question. A change to the drawing edits the SVG; only a change to the design itself regenerates the concept
-(`references/concept-art.md` §5). When done, stop the server and delete the scratch folder and the preview: the
-preview holds a copy of the reference image, and the folder holds any concept art. Gallery characters skip this step unless the user asks to see one.
+in the question. A small drawing change edits the SVG in place; a design change repeats the same selected drawing
+branch. When done, stop the server and delete the scratch folder and the preview: the preview holds a copy of the
+reference image. Gallery characters skip this step unless the user asks to see one.
 
 ### 4. Wire it into the app as an optional feature
 
@@ -286,12 +291,12 @@ a screenshot path if you took one, and mention any edge you skipped because it w
 - `scripts/check_mascot_svg.py`: validates an SVG against the parts contract
 - `scripts/check_reference_image.py`: technical check of a user's reference image (format, size, dimensions)
 - `scripts/find_mascot.py`: finds a mascot already in the project, or leftovers of a replaced one (`--name`)
-- `scripts/make_preview.py`: standalone HTML preview of a character folder (`--serve` for a localhost URL, `--concept` for concept art), for approval before wiring
-- `scripts/generate_concept.py`: optional concept art with OpenAI or Amazon Bedrock image models (`--check` for credentials)
+- `scripts/make_preview.py`: standalone HTML preview of a character folder (`--serve` for a localhost URL), for approval before wiring
+- `scripts/generate_vector.py`: direct AI SVG generation with an OpenAI SVG model (`--check` for credentials), adapted to the parts contract
 - `references/behavior.md`: lifecycle, placement math, invariants, personality tuning, gotchas
 - `references/character-design.md`: drawing guide for chibi and realistic styles, parts contract, originality
 - `references/from-image.md`: reading the user's image, eligibility, traits to keep, preview and cleanup
-- `references/concept-art.md`: optional concept art: providers, keys, consent, prompts, redrawing as SVG, cleanup
+- `references/vector-upgrade.md`: AI SVG branch: prompting, credentials, endpoint limits, adapting the answer, validation and fallback
 - `references/replacing.md`: one mascot per app; replacing an installed or hand-built one
 - `references/updating.md`: offering and applying updates to an installed mascot, changelog, releasing a version
 - `references/testing.md`: deterministic browser tests

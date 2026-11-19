@@ -12,18 +12,23 @@ What an installed mascot needs to move to a newer engine (the **App changes**) i
 
 ### Added
 
-- Optional concept art: for a new or image-based mascot, an OpenAI or Amazon Bedrock image model can paint a concept
-  first (key from the environment or pasted for one run), shown next to the drawing in the preview; the mascot is still
-  redrawn as SVG.
+- A two-branch drawing flow for new or image-based mascots: **Basic SVG** is drawn locally by the agent, while
+  **AI SVG** calls OpenAI's `gpt-image-2.6-flare` or `gpt-image-2.6-sunburst` directly and returns the mascot SVG.
+  Both branches use the same validation, preview and approval steps; the AI branch falls back to Basic SVG on error.
+- A Mermaid workflow in the repository README that separates the user, agent UI, local backend and OpenAI model,
+  including credential handling, validation, approval and cleanup.
 
 ### Fixed
 
-- Concept art with OpenAI no longer fails with "Invalid type for 'n'": the image count is sent as a number.
+- AI SVG requests send typed values to OpenAI, including an integer image count, so the request is accepted before
+  the SVG is adapted.
 
 ### Changed
 
-- When concept art fails, the error says what went wrong (rejected key, no model access, no credit, content filter,
-  skill bug…) and what to do next; rate limits and provider errors are retried once.
+- Concept art is no longer part of the standard mascot flow. The agent chooses Basic SVG or direct AI SVG instead,
+  so there is no paid raster concept step before drawing the mascot.
+- AI SVG errors say what went wrong (rejected key, no model access, no credit, content filter, skill bug…) and fall
+  back to the local Basic SVG branch; temporary rate limits and provider errors are retried once.
 
 - Approving a preview is now one single-choice question: **Approve** (default), **Cancel**, or type what to change in
   the free-text box. Any typed answer counts as a change request, so there is always a place to describe the change.

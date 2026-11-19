@@ -14,6 +14,67 @@ Version is each skill's `metadata.version`; the link opens its changelog.
 
 ![Kei, Mochi and Bolt](docs/gallery.png)
 
+## Peekaboo workflow
+
+The user chooses only how the mascot is drawn. Concept art is not part of the normal flow: **Basic SVG** is drawn
+locally by the agent, while **AI SVG** returns the mascot SVG itself from OpenAI. Both branches use the same
+validation, preview and approval UI.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as User
+  participant UI as Agent UI / localhost preview
+  participant BE as Skill backend / local scripts
+  participant AI as OpenAI image model
+
+  U->>UI: Request a mascot
+  UI->>BE: Inspect app layout, shortcuts and existing mascot
+  BE-->>UI: Proposed defaults
+  UI->>U: Show one structured form
+  U->>UI: Character, source and drawing method
+  UI->>BE: Submit answers
+
+  alt Basic SVG — default, local
+    BE->>BE: Draw original SVG from the character brief
+  else AI SVG — billed
+    BE->>BE: Build a safe text-only brief
+    Note over BE: A local photo is described, not uploaded
+    BE->>BE: Read OPENAI_API_KEY or a pasted key on stdin
+    Note over BE: Never save or print the key
+    BE->>AI: Request SVG generation
+    Note over BE,AI: Flare is the default model, Sunburst is optional, and the request returns SVG from text"
+    AI-->>BE: Static SVG
+    opt Provider failure or unusable AI result
+      BE-->>UI: Report one-line AI failure
+      BE->>BE: Fall back to local Basic SVG drawing
+    end
+  end
+
+  loop Until approved or cancelled
+    BE->>BE: Adapt and validate SVG parts, animation, size and safety
+    BE-->>UI: Validated mascot, reference and checks
+    UI-->>U: Open localhost preview
+    U->>UI: Approve, Cancel or type a change
+    alt Approve
+      UI->>BE: Install chosen SVG
+      BE->>BE: Install under src/optional/mascot with one mountMascot boundary
+    else Small drawing change
+      UI->>BE: Apply requested SVG edit locally
+    else New design
+      UI->>BE: Repeat the selected drawing method
+    else Cancel
+      UI->>BE: Leave the app unchanged
+    end
+  end
+
+  BE->>BE: Stop preview and delete scratch files
+```
+
+For an AI run, the API's SVG endpoint accepts text only. A photo or sketch stays local; the agent reads its traits
+and sends a generic description, not the image. The model result is still adapted and checked before the user sees it.
+If the provider fails, the same request continues through the Basic SVG branch.
+
 ## Install
 
 ```bash
@@ -83,10 +144,13 @@ another project. The others are scaled from how long the skill's test runs took,
 
 Actual cost depends on the model and its credit multiplier, how large the app is, and how many follow-up tweaks you ask for.
 
-Optional concept art (OpenAI or Amazon Bedrock image models) is billed separately by that provider, per image, with
-your own key. It is off unless you choose it.
+Optional AI SVG generation is billed separately by OpenAI. `gpt-image-2.6-flare` is the default; Sunburst is used
+when more detail is requested. OpenAI charges for the internal reference image plus the tokens spent writing the SVG.
+It is off unless the user chooses the AI SVG branch.
 
-## API keys for concept art
+## OpenAI API key for AI SVG
+
+AI SVG generation uses `OPENAI_API_KEY`.
 
 An AI agent only sees the environment variables of the program that started it: VS Code, the Copilot CLI or your
 terminal. A variable you `export` in one terminal tab is invisible to an agent that was started elsewhere. Set the key
@@ -95,8 +159,6 @@ once, in a place that program reads, then restart it.
 | Provider | Variables |
 |---|---|
 | OpenAI | `OPENAI_API_KEY` |
-| Amazon Bedrock (API key) | `AWS_BEARER_TOKEN_BEDROCK`, `AWS_REGION` (e.g. `us-east-1`) |
-| Amazon Bedrock (AWS credentials) | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`; needs `pip install boto3` |
 
 **Linux and macOS.** Keep the keys in a private file outside every repository:
 
@@ -104,8 +166,6 @@ once, in a place that program reads, then restart it.
 mkdir -p ~/.config/agent-keys
 cat > ~/.config/agent-keys/env <<'EOF'
 export OPENAI_API_KEY='sk-...'
-export AWS_BEARER_TOKEN_BEDROCK='...'
-export AWS_REGION='us-east-1'
 EOF
 chmod 600 ~/.config/agent-keys/env
 ```
@@ -122,8 +182,6 @@ echo '[ -f ~/.config/agent-keys/env ] && . ~/.config/agent-keys/env' >> ~/.bashr
 
 ```powershell
 [Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'sk-...', 'User')
-[Environment]::SetEnvironmentVariable('AWS_BEARER_TOKEN_BEDROCK', '...', 'User')
-[Environment]::SetEnvironmentVariable('AWS_REGION', 'us-east-1', 'User')
 ```
 
 **Restart the agent.** Quit VS Code completely (every window, not just *Reload Window*) and open it again. On Linux, if
@@ -132,7 +190,7 @@ terminal agents, open a new terminal. Then check what the agent sees; it prints 
 values:
 
 ```bash
-python3 skills/peekaboo/scripts/generate_concept.py --check
+python3 skills/peekaboo/scripts/generate_vector.py --check
 ```
 
 Keep keys out of `.env` files in your projects, VS Code `settings.json` and anything you commit. Prefer a short-term
@@ -146,7 +204,7 @@ Kiểm thử công cụ release không cần cài dependency npm; test HTTPS c�
 node --test skills/release/scripts/release.test.mjs
 ```
 
-Kiểm thử script tạo concept art của peekaboo chạy với máy chủ giả lập cục bộ, không cần khóa API và không tốn phí:
+Kiểm thử script tạo SVG bằng AI của peekaboo chạy với máy chủ giả lập cục bộ, không cần khóa API và không tốn phí:
 
 ```bash
 python3 -m unittest discover -s skills/peekaboo/scripts -p 'test_*.py'

@@ -1,5 +1,9 @@
 # Concept art with an image model (optional)
 
+> **Not part of the standard peekaboo flow.** Do not offer this step for normal mascot creation. The current workflow
+> has two choices only: Basic SVG or direct AI SVG. Use this standalone utility only when the user explicitly asks for
+> a separate concept image.
+
 For a new or image-based character, an image model (OpenAI or Amazon Bedrock) can paint a polished concept first. You
 then redraw it as the animated SVG. The concept is a **design target only**: the mascot in the app stays pure inline
 SVG with the `pb-*` parts (`check_mascot_svg.py` still rejects `<image>`), so the module, motion and size are the same
@@ -96,6 +100,9 @@ python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> --concept <
 ```
 
 Say in the approval message that the concept is the target and the SVG is what goes into the app.
+
+To get closer to the concept than a hand drawing allows, the user can also choose the vector upgrade: an OpenAI SVG
+model redraws your basic SVG richer, and the basic one stays the fallback (`references/vector-upgrade.md`).
 
 ## 5. Change requests and cleanup
 

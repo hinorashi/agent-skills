@@ -2,12 +2,12 @@
 """Build a standalone HTML preview of a peekaboo character, so the user can approve it before it goes into the app.
 
 The character folder has the gallery shape: <id>.svg, character.json and an optional <id>.css.
-The page shows the reference image and the generated concept art (if given) next to the drawing, every pose at 2x and actual size, the
+The page shows the reference image, the generated concept art and the basic drawing behind a vector upgrade (if given) next to the drawing, every pose at 2x and actual size, the
 SVG checker result, the color palette as swatches, and a live peek demo that plays the character's routine.
 The file works offline; --serve also serves it on http://127.0.0.1 for browsers or tools that block file:// pages.
 
-Usage: make_preview.py path/to/character-dir [--reference image.png] [--concept concept.png] [--out preview.html]
-                       [--serve [--port N]]
+Usage: make_preview.py path/to/character-dir [--reference image.png] [--concept concept.png] [--basic basic.svg]
+                       [--out preview.html] [--serve [--port N]]
 Prints the path of the written HTML file (and the URL with --serve, which then runs until stopped).
 """
 import argparse
@@ -112,6 +112,7 @@ def main():
     parser.add_argument("character", help="character folder, or its character.json")
     parser.add_argument("--reference", help="the user's reference image, shown side by side")
     parser.add_argument("--concept", help="concept art from generate_concept.py, shown side by side")
+    parser.add_argument("--basic", help="the basic SVG kept as fallback when <id>.svg is a vector upgrade, shown side by side")
     parser.add_argument("--out", help="output HTML (default: preview.html in the character folder)")
     parser.add_argument("--serve", action="store_true", help="also serve the page on 127.0.0.1 until stopped")
     parser.add_argument("--port", type=int, default=0, help="port for --serve (default: any free port)")
@@ -149,6 +150,9 @@ def main():
     if args.concept:
         reference += (f'<figure><img class="ref" src="{data_uri(args.concept)}" alt="Concept art">'
                       f'<figcaption>Concept art (generated)</figcaption></figure>')
+    if args.basic:
+        reference += (f'<figure><img class="ref" src="{data_uri(args.basic)}" alt="Basic drawing">'
+                      f'<figcaption>Basic drawing (fallback)</figcaption></figure>')
 
     facts = {
         "Style": meta.get("style", "chibi"),
