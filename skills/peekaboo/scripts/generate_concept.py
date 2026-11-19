@@ -30,6 +30,7 @@ import argparse
 import base64
 import json
 import os
+import socket
 import sys
 import time
 import urllib.error
@@ -41,6 +42,7 @@ OPENAI_MODEL = 'gpt-image-1.5'
 BEDROCK_MODEL = 'amazon.nova-canvas-v1:0'
 SIZES = {'square': (1024, 1024), 'portrait': (1024, 1536)}
 TIMEOUT = 240
+KEEPALIVE_IDLE = 15
 
 STYLE = {
     'chibi': ('cute chibi mascot, big head, small body, clean flat vector illustration, bold simple shapes, '
@@ -159,9 +161,41 @@ def describe_http_error(status, headers, raw):
     return classify(status, error_type, str(code), message), f'HTTP {status} {error_type or code}'.strip() + f': {message}'
 
 
+def keepalive_connection(original, idle):
+    def create_connection(*args, **kwargs):
+        sock = original(*args, **kwargs)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+        for option in ('TCP_KEEPIDLE', 'TCP_KEEPALIVE'):
+            if hasattr(socket, option):
+                sock.setsockopt(socket.IPPROTO_TCP, getattr(socket, option), idle)
+                break
+        if hasattr(socket, 'TCP_KEEPINTVL'):
+            sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL, idle)
+        return sock
+    return create_connection
+
+
+def proxy_route(url):
+    parsed_url = urllib.parse.urlsplit(url)
+    if urllib.request.proxy_bypass(parsed_url.hostname or ''):
+        return 'direct HTTPS (proxy bypass)'
+    proxy = urllib.request.getproxies().get(parsed_url.scheme)
+    if not proxy:
+        return 'direct HTTPS'
+    parsed = urllib.parse.urlsplit(proxy)
+    return f'proxy {parsed.hostname}' + (f':{parsed.port}' if parsed.port else '')
+
+
 def post(url, body, headers, secret):
     for attempt in (1, 2):
         request = urllib.request.Request(url, data=body, headers=headers, method='POST')
+        original = socket.create_connection
+        try:
+            idle = max(5, min(int(os.environ.get('OPENAI_KEEPALIVE_IDLE', KEEPALIVE_IDLE)), 120))
+        except ValueError:
+            idle = KEEPALIVE_IDLE
+        if os.environ.get('OPENAI_KEEPALIVE', '').lower() not in ('0', 'false', 'off'):
+            socket.create_connection = keepalive_connection(original, idle)
         try:
             with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
                 return json.loads(response.read())
@@ -173,9 +207,11 @@ def post(url, body, headers, secret):
                 continue
             raise Fail(redact(text, secret), kind) from None
         except urllib.error.URLError as error:
-            raise Fail(redact(f'cannot reach {url}: {error.reason}', secret), 'network') from None
+            raise Fail(redact(f'cannot reach {url} via {proxy_route(url)}: {error.reason}', secret), 'network') from None
         except TimeoutError:
-            raise Fail(f'no answer from {url} within {TIMEOUT} s', 'network') from None
+            raise Fail(f'no answer from {url} via {proxy_route(url)} within {TIMEOUT} s', 'network') from None
+        finally:
+            socket.create_connection = original
 
 
 def openai(args, prompt, key, reference):

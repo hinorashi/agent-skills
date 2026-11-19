@@ -5,10 +5,18 @@ All notable changes to the `peekaboo` skill are documented here, following
 [SKILL.md](./SKILL.md) and [SemVer](https://semver.org/). Dates come from the commit that set each version; there are
 no Git tags yet.
 
+## [Unreleased]
+
+### Fixed
+
+- Long OpenAI SVG requests now enable TCP keepalive (`OPENAI_KEEPALIVE_IDLE=15` by default), and network errors report
+  the sanitized proxy route. This reduces idle disconnects through corporate proxies without automatically retrying
+  a potentially billed request.
+
 What an installed mascot needs to move to a newer engine (the **App changes**) is in
 [references/updating.md](./references/updating.md).
 
-## [Unreleased]
+## [1.6.0] - 2026-11-19
 
 ### Added
 

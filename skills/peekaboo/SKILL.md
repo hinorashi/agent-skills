@@ -5,7 +5,7 @@ license: MIT
 compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the scripts need Python 3. AI SVG generation needs network access and an OpenAI key.
 metadata:
   author: hinorashi
-  version: "1.5.0"
+  version: "1.6.0"
 ---
 
 # Peekaboo mascot

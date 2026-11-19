@@ -4,7 +4,7 @@
 // Framework-free, no dependencies. Pair with peekaboo.css. See the peekaboo skill's SKILL.md for how to adapt it.
 
 /** The peekaboo skill version this copy came from; the skill compares it to offer updates. Keep it when copying. */
-export const PEEKABOO_VERSION = '1.5.0';
+export const PEEKABOO_VERSION = '1.6.0';
 
 export type Side = 'top' | 'bottom' | 'left' | 'right';
 type Direction = 'up' | 'down' | 'left' | 'right';

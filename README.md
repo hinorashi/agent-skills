@@ -10,7 +10,7 @@ Version is each skill's `metadata.version`; the link opens its changelog.
 |---|---|---|
 | [changelog](skills/changelog/SKILL.md) | [1.0.0](skills/changelog/CHANGELOG.md) | Viết và đối chiếu ghi chú `[Unreleased]` từ thay đổi thực tế; gộp mục trùng, giữ lịch sử đã phát hành và không tự commit/tag/push. |
 | [release](skills/release/SKILL.md) | [1.0.0](skills/release/CHANGELOG.md) | Phát hành có xác nhận trên GitHub/Gitea; ưu tiên quy trình của kho, kèm script độc lập và kiểm thử từ Ganttz cho kho phù hợp. |
-| [peekaboo](skills/peekaboo/SKILL.md) | [1.5.0](skills/peekaboo/CHANGELOG.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and it draws an original SVG in chibi or realistic style, checking the image is eligible first and showing a preview page for your approval before touching your code. The mascot peeks out from page edges without covering the UI, looks around, blinks, hides and leaves a clickable keepsake. One mascot per app: if one is already installed, it asks whether to replace it. |
+| [peekaboo](skills/peekaboo/SKILL.md) | [1.6.0](skills/peekaboo/CHANGELOG.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and create an original SVG in chibi or realistic style with Basic SVG or direct AI SVG generation. It validates the drawing and shows a preview for approval before touching your code. The mascot peeks out without covering the UI, blinks, looks around, hides and leaves a clickable keepsake. |
 
 ![Kei, Mochi and Bolt](docs/gallery.png)
 
@@ -173,7 +173,7 @@ once, in a place that program reads, then restart it.
 
 | Provider | Variables |
 |---|---|
-| OpenAI | `OPENAI_API_KEY`, optional `OPENAI_SVG_MODEL` |
+| OpenAI | `OPENAI_API_KEY`, optional `OPENAI_SVG_MODEL`, `OPENAI_KEEPALIVE_IDLE` |
 
 **Linux and macOS.** Keep the keys in a private file outside every repository:
 
@@ -182,6 +182,8 @@ mkdir -p ~/.config/agent-keys
 cat > ~/.config/agent-keys/env <<'EOF'
 export OPENAI_API_KEY='sk-...'
 # export OPENAI_SVG_MODEL='gpt-5.4-mini'
+# Long synchronous SVG calls send TCP keepalive every 15 seconds.
+# export OPENAI_KEEPALIVE_IDLE='15'
 EOF
 chmod 600 ~/.config/agent-keys/env
 ```
@@ -200,6 +202,7 @@ echo '[ -f ~/.config/agent-keys/env ] && . ~/.config/agent-keys/env' >> ~/.bashr
 [Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'sk-...', 'User')
 # Optional:
 [Environment]::SetEnvironmentVariable('OPENAI_SVG_MODEL', 'gpt-5.4-mini', 'User')
+[Environment]::SetEnvironmentVariable('OPENAI_KEEPALIVE_IDLE', '15', 'User')
 ```
 
 **Restart the agent.** Quit VS Code completely (every window, not just *Reload Window*) and open it again. On Linux, if
@@ -213,6 +216,11 @@ python3 skills/peekaboo/scripts/generate_vector.py --check
 
 Keep keys out of `.env` files in your projects, VS Code `settings.json` and anything you commit. Prefer a short-term
 or restricted key, and revoke a key you have pasted into a chat.
+
+SVG requests are synchronous and can take longer than a corporate proxy's idle-tunnel limit. The scripts enable TCP
+keepalive by default (`OPENAI_KEEPALIVE_IDLE=15`, valid range 5–120 seconds). Network errors print the proxy host
+without credentials. Direct egress must not be forced: if the proxy still closes the tunnel, report the failure and ask
+the network administrator to allow long-lived HTTPS connections to `api.openai.com`.
 
 ## Validate
 

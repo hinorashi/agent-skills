@@ -47,6 +47,21 @@ In the report, say the old and new versions, what the user can now do, and any l
 
 Newest first. Each entry says what changed and what the app needs beyond copying the new module.
 
+### 1.6.0
+
+- **Two SVG creation branches**: new mascots can use local Basic SVG or direct AI SVG generation with OpenAI.
+- **Fail-closed AI quality gate**: provider, model, response and visual-quality failures stop before preview or
+  installation instead of silently drawing a local replacement. Realistic mode uses Sunburst with high quality and
+  SVG-author reasoning by default; chibi uses Flare.
+- **Correct SVG request shape**: OpenAI SVG output sends both the top-level image model and the separate `svg.model`
+  author, with an override through `OPENAI_SVG_MODEL` or `--svg-model`.
+- **Cleaner installed skill**: bundled `.gitignore` rules keep Python cache directories and bytecode out of host
+  projects.
+
+App changes:
+
+- None. Existing mascot behavior is unchanged; copy the module only to carry the 1.6.0 version stamp.
+
 ### 1.5.0
 
 - **Power switch**: a second shortcut turns the mascot off entirely and back on (on by default, persisted under

@@ -10,11 +10,16 @@ import base64
 import http.server
 import json
 import os
+import socket
 import subprocess
 import sys
 import tempfile
 import threading
 import unittest
+from unittest import mock
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import generate_concept  # noqa: E402
 
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'generate_concept.py')
 PNG = b'\x89PNG\r\n\x1a\n' + b'\0' * 24
@@ -111,6 +116,24 @@ class GenerateConceptTest(unittest.TestCase):
     def bedrock(self, *args, key='bk-secret'):
         return self.run_script('--provider', 'bedrock', '--prompt', 'a fox', '--bedrock-endpoint', self.url, *args,
                                env={'AWS_BEARER_TOKEN_BEDROCK': key})
+
+    def test_keepalive_connection_sets_socket_options(self):
+        sock = mock.Mock()
+        create = generate_concept.keepalive_connection(lambda *args, **kwargs: sock, 15)
+        self.assertIs(create('host', 443), sock)
+        self.assertTrue(any(call.args[:2] == (socket.SOL_SOCKET, socket.SO_KEEPALIVE)
+                            for call in sock.setsockopt.call_args_list))
+
+    def test_network_error_reports_sanitized_proxy_route(self):
+        with mock.patch('urllib.request.getproxies',
+                        return_value={'https': 'http://user:secret@proxy.example:8080'}), \
+                mock.patch('urllib.request.urlopen',
+                           side_effect=generate_concept.urllib.error.URLError('tunnel reset')):
+            with self.assertRaises(generate_concept.Fail) as caught:
+                generate_concept.post('https://api.openai.com/v1/models', b'{}', {}, 'sk-test')
+        self.assertEqual(caught.exception.kind, 'network')
+        self.assertIn('proxy.example:8080', str(caught.exception))
+        self.assertNotIn('secret', str(caught.exception))
 
     def test_openai_generation_sends_typed_json(self):
         result = self.run_script('--provider', 'openai', '--prompt', 'a fox', '--n', '2', '--size', 'portrait',

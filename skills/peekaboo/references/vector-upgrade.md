@@ -56,6 +56,13 @@ also drift from the brief. Quality and SVG-author reasoning are selected by styl
 `--quality high --svg-effort high`; chibi uses Flare with medium quality/reasoning. Override them only when the user
 asks. Higher SVG-author reasoning can increase the token cost of the SVG stage.
 
+SVG generation is synchronous. A long request can outlive a corporate proxy's idle-tunnel limit even when short
+OpenAI requests work. TCP keepalive is enabled by default; `OPENAI_KEEPALIVE_IDLE` changes the interval (15 seconds by
+default, clamped to 5–120). Set `OPENAI_KEEPALIVE=0` only for a controlled diagnosis. Network errors report a sanitized
+proxy hostname and port. Do not hide the proxy or retry the paid call automatically: a lost response may mean OpenAI
+already generated and billed the SVG. If keepalive is insufficient, stop and ask the network administrator to permit
+long-lived HTTPS to `api.openai.com`.
+
 The script writes `vector/raw.svg` (the untouched answer) and `vector/<id>.svg` (the adapted result):
 
 - removes `<title>`, `<desc>`, a full-canvas background, root `width`/`height`;

@@ -49,7 +49,9 @@ VECTOR_HINTS = {
     'model': 'the selected image or SVG-author model is unavailable to this account; choose an available model.',
     'request': 'the API rejected the request; update or fix the skill before trying the AI branch again.',
     'server': 'the provider had an internal error after the automatic retry; try the AI branch again later.',
-    'network': 'the provider could not be reached; check the network or proxy before trying the AI branch again.',
+    'network': 'the provider could not be reached; inspect the reported proxy route. Long SVG requests use TCP '
+               'keepalive by default (OPENAI_KEEPALIVE_IDLE=15). If a corporate proxy still closes the tunnel, '
+               'ask the network administrator to allow long-lived HTTPS to api.openai.com.',
     'response': 'the provider response did not contain a usable SVG; report the response error.',
     'prompt': 'shorten or rephrase --prompt, then try the AI branch again.',
 }
