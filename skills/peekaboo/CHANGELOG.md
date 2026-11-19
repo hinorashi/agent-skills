@@ -14,21 +14,30 @@ What an installed mascot needs to move to a newer engine (the **App changes**) i
 
 - A two-branch drawing flow for new or image-based mascots: **Basic SVG** is drawn locally by the agent, while
   **AI SVG** calls OpenAI's `gpt-image-2.6-flare` or `gpt-image-2.6-sunburst` directly and returns the mascot SVG.
-  Both branches use the same validation, preview and approval steps; the AI branch falls back to Basic SVG on error.
+  Both branches use the same validation, preview and approval steps. AI failures stop the process visibly and never
+  switch to Basic SVG without a new, explicit user choice.
 - A Mermaid workflow in the repository README that separates the user, agent UI, local backend and OpenAI model,
   including credential handling, validation, approval and cleanup.
 
 ### Fixed
 
-- AI SVG requests send typed values to OpenAI, including an integer image count, so the request is accepted before
-  the SVG is adapted.
+- AI SVG quality is no longer judged by structural validity alone. Realistic mode uses Sunburst with high reference
+  quality and high SVG-author reasoning; generated SVG is rejected when anatomy is duplicated, the keepsake contains
+  half the canvas or the face is too narrow. This prevents artifacts like a duplicated-eye, wing-dominated mascot
+  from reaching the preview.
+- AI SVG requests send both required model roles: the top-level Flare/Sunburst image model and the separate
+  `svg.model` author (`gpt-5.4-mini` by default, overridable with `OPENAI_SVG_MODEL` or `--svg-model`). This fixes
+  OpenAI's `SVG generation requires 'svg.model'` response.
+- Installed skills now bundle `.gitignore` rules for Python `__pycache__` directories and bytecode files, so running
+  validation scripts does not dirty the host project.
 
 ### Changed
 
 - Concept art is no longer part of the standard mascot flow. The agent chooses Basic SVG or direct AI SVG instead,
   so there is no paid raster concept step before drawing the mascot.
-- AI SVG errors say what went wrong (rejected key, no model access, no credit, content filter, skill bug…) and fall
-  back to the local Basic SVG branch; temporary rate limits and provider errors are retried once.
+- AI SVG errors say what went wrong (rejected key, no model access, no credit, content filter, skill bug…) and stop
+  before preview or installation; a local Basic SVG is never substituted in the same run. Temporary rate-limit and
+  provider errors are retried once.
 
 - Approving a preview is now one single-choice question: **Approve** (default), **Cancel**, or type what to change in
   the free-text box. Any typed answer counts as a change request, so there is always a place to describe the change.

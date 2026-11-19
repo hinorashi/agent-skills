@@ -15,11 +15,13 @@ Usage:
         Re-run only the adapter on a saved raw SVG (no API call, nothing billed).
 
 Credentials: OPENAI_API_KEY (optional OPENAI_BASE_URL, OPENAI_ORG_ID / OPENAI_PROJECT_ID), or --api-key-stdin.
-Models: gpt-image-2.6-flare (default, fast), gpt-image-2.6-sunburst (more detail). Bedrock has no SVG output.
+Models: gpt-image-2.6-flare for chibi, gpt-image-2.6-sunburst for realistic (the defaults). Bedrock has no SVG
+output. OPENAI_SVG_MODEL selects the separate text model that authors the SVG.
 
 Writes <out>/raw.svg (the model's answer, untouched) and <out>/<id>.svg (adapted), and prints the adapted path.
 Exit code: 0 ok, 1 provider or network error (same "ERROR [<kind>]" / "HINT" lines as generate_concept.py),
-2 usage error, 3 written but check_mascot_svg.py reports a FAIL (wrap the missing part by hand, or use the basic branch).
+2 usage error, 3 written but check_mascot_svg.py reports a FAIL. Every nonzero exit stops the AI SVG branch; the caller
+must report the failure and must not silently draw a Basic SVG instead.
 Standard library only. Tests: test_generate_vector.py.
 """
 import argparse
@@ -32,10 +34,25 @@ import sys
 import xml.etree.ElementTree as ET
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.dont_write_bytecode = True
 sys.path.insert(0, HERE)
-from generate_concept import HINTS, STYLE, Fail, post, redact  # noqa: E402
+from generate_concept import STYLE, Fail, post, redact  # noqa: E402
 
 MODEL = 'gpt-image-2.6-flare'
+SVG_MODEL = 'gpt-5.4-mini'
+VECTOR_HINTS = {
+    'auth': 'the key was rejected or expired; fix OPENAI_API_KEY or provide a new one.',
+    'access': 'the key lacks access to the image or SVG-author model; enable access before trying the AI branch again.',
+    'quota': 'the OpenAI account has no credit or quota left; add billing before trying the AI branch again.',
+    'rate_limit': 'the provider is still rate-limited after the automatic retry; wait and try the AI branch again.',
+    'content_filter': 'the provider refused the prompt; rephrase it with generic character traits.',
+    'model': 'the selected image or SVG-author model is unavailable to this account; choose an available model.',
+    'request': 'the API rejected the request; update or fix the skill before trying the AI branch again.',
+    'server': 'the provider had an internal error after the automatic retry; try the AI branch again later.',
+    'network': 'the provider could not be reached; check the network or proxy before trying the AI branch again.',
+    'response': 'the provider response did not contain a usable SVG; report the response error.',
+    'prompt': 'shorten or rephrase --prompt, then try the AI branch again.',
+}
 SVG_NS = 'http://www.w3.org/2000/svg'
 XLINK_NS = 'http://www.w3.org/1999/xlink'
 PARTS = ('pb-face', 'pb-eyes', 'pb-pupils', 'pb-keepsake')
@@ -90,8 +107,9 @@ def build_prompt_from_description(description, style, width, height, notes):
 def render_prompt(subject, style, width, height, notes, from_base):
     vb_w, vb_h = 400, round(400 * height / width)
     words = STYLE[style][0]
-    proportions = ('head about 55-60% of the height' if style == 'chibi'
-                   else 'natural proportions, head and neck about half of the height')
+    proportions = ('head about 55-60% of the canvas height' if style == 'chibi'
+                   else 'recognizable species anatomy with a deliberately large readable head, about 45-50% '
+                        'of the canvas height and at least 38% of the canvas width')
     intent = ('Redraw the small website mascot below as a polished, original SVG illustration of the same character.'
               if from_base else
               'Draw a polished, original SVG illustration of the small website mascot described below.')
@@ -103,11 +121,17 @@ def render_prompt(subject, style, width, height, notes, from_base):
         'of the height, the stated colors, and the top-most signature feature touching the very top of the canvas.\n'
         f'Improve: {words}; refined, expressive shapes; each color in 2-3 tones for soft shading; still clear at '
         f'{width}x{height} pixels.\n'
+        'Readability: use one clean silhouette and one copy of each anatomical part. The face must be visually dominant, '
+        'high-contrast on both light and dark backgrounds, with exactly one mouth, exactly two eyes, and no stacked, '
+        'ghosted or duplicated copies of eyes, pupils, brows, teeth or facial highlights. Fewer large, deliberate '
+        'shapes are better than tiny decorative details at mascot size.\n'
         f'Structure: one <svg> with viewBox "0 0 {vb_w} {vb_h}" (portrait {width}:{height}), transparent background '
         'with no background shape, no text, no filters, masks or embedded images. Use these group ids exactly: '
-        '"pb-face" around the brows, eyes and mouth; "pb-eyes" inside it around both eyes; "pb-pupils" inside '
-        '"pb-eyes" around the irises, pupils and eye highlights; "pb-keepsake" around the top-most feature, drawn '
-        'last. Keep it light: about 150 shapes at most.'
+        '"pb-face" as the parent of the brows, eyes and mouth; "pb-eyes" inside pb-face as the only parent of both '
+        'complete eyes; "pb-pupils" inside pb-eyes as the only parent of all irises, pupils and eye highlights; '
+        '"pb-keepsake" only around the isolated top-most 10-20% signature feature, not around the wings, body or whole '
+        'head, drawn last. Do not paint any eye, pupil, mouth or keepsake shape outside its designated group. '
+        'Keep it light: about 100 shapes at most.'
     )
     if notes:
         text += f'\nAlso: {notes.strip()}'
@@ -117,7 +141,8 @@ def render_prompt(subject, style, width, height, notes, from_base):
 def request_svg(args, prompt, key):
     base = os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1').rstrip('/')
     body = {'model': args.model, 'prompt': prompt, 'n': 1, 'output_format': 'svg', 'size': args.size,
-            'quality': args.quality}
+            'quality': args.quality,
+            'svg': {'model': args.svg_model, 'reasoning': {'effort': args.svg_effort}}}
     if args.complexity:
         body['complexity'] = args.complexity
     headers = {'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'}
@@ -254,6 +279,56 @@ def painted(root):
 
 def union(boxes):
     return (min(b[0] for b in boxes), min(b[1] for b in boxes), max(b[2] for b in boxes), max(b[3] for b in boxes))
+
+
+def quality_issues(root):
+    """Reject model answers that pass the parts contract but are visibly degraded at mascot size."""
+    issues = []
+    elements = list(root.iter())
+    parts = {name: [e for e in elements if name in classes(e)] for name in PARTS}
+    for name, found in parts.items():
+        if len(found) != 1:
+            issues.append(f'{name} appears {len(found)} times; expected one animated group')
+
+    face = parts['pb-face'][0] if len(parts['pb-face']) == 1 else None
+    eyes = parts['pb-eyes'][0] if len(parts['pb-eyes']) == 1 else None
+    pupils = parts['pb-pupils'][0] if len(parts['pb-pupils']) == 1 else None
+    keepsake = parts['pb-keepsake'][0] if len(parts['pb-keepsake']) == 1 else None
+    if face is not None and eyes is not None and eyes not in set(face.iter()):
+        issues.append('pb-eyes is not inside pb-face')
+    if eyes is not None and pupils is not None and pupils not in set(eyes.iter()):
+        issues.append('pb-pupils is not inside pb-eyes')
+
+    drawn = painted(root)
+    fingerprints = {}
+    for element, _ in drawn:
+        attrs = tuple(sorted(
+            (local(name), value) for name, value in element.attrib.items()
+            if local(name) not in ('id', 'class', 'style')
+        ))
+        fingerprints[(local(element.tag), attrs)] = fingerprints.get((local(element.tag), attrs), 0) + 1
+    duplicate_count = sum(count - 1 for count in fingerprints.values() if count > 1)
+    if duplicate_count:
+        issues.append(f'{duplicate_count} painted shape(s) exactly duplicate earlier anatomy')
+
+    view_box = [float(v) for v in NUMBER.findall(root.get('viewBox', ''))]
+    if len(view_box) == 4:
+        _, _, canvas_w, canvas_h = view_box
+        boxes = {element: box for element, box in drawn}
+
+        def descendants_box(group):
+            found = [boxes[e] for e in group.iter() if e in boxes]
+            return union(found) if found else None
+
+        if keepsake is not None:
+            box = descendants_box(keepsake)
+            if box and (box[3] - box[1]) > canvas_h * 0.5:
+                issues.append('pb-keepsake spans more than half the canvas instead of only the top signature detail')
+        if face is not None:
+            box = descendants_box(face)
+            if box and (box[2] - box[0]) < canvas_w * 0.38:
+                issues.append('pb-face is too narrow for a readable mascot face')
+    return issues
 
 
 # --- adapter ------------------------------------------------------------------------------------------------------
@@ -425,13 +500,16 @@ def adapt(raw_svg, cid, width, height, model=''):
     round_numbers(root, view_width)
     root.set('style', f'--peekaboo-look-face:{1.5 * view_width / 40:.1f}px;'
                       f'--peekaboo-look-pupils:{1.2 * view_width / 40:.1f}px')
+    issues = quality_issues(root)
+    if issues:
+        raise ValueError('quality check failed: ' + '; '.join(issues))
     body = ET.tostring(root, encoding='unicode')
     by = f' by {model}' if model else ''
     text = (f'<!-- {cid}: AI-generated peekaboo SVG{by}, adapted by generate_vector.py. -->\n{body}\n')
     size_kb = len(text.encode('utf-8')) / 1024
     if size_kb > HEAVY_KB:
         notes.append(f'WARN {size_kb:.0f} KB is heavy for an inline mascot (aim for under {HEAVY_KB} KB); try '
-                     '--complexity low, simplify by hand, or use the basic SVG branch')
+                     '--complexity low, or simplify the generated SVG before approval')
     return text, notes
 
 
@@ -457,11 +535,15 @@ def main():
     ap.add_argument('--height', type=float, default=100)
     ap.add_argument('--no-keepsake', action='store_true', help='the mascot leaves nothing above the edge')
     ap.add_argument('--notes', help='extra direction, e.g. "softer fur shading, keep the scarf pink"')
-    ap.add_argument('--model', default=MODEL, help=f'default {MODEL}; gpt-image-2.6-sunburst for more detail')
+    ap.add_argument('--model', help='image model; default Sunburst for realistic, Flare for chibi')
+    ap.add_argument('--svg-model', default=os.environ.get('OPENAI_SVG_MODEL', SVG_MODEL),
+                    help=f'text model that authors the SVG (default {SVG_MODEL} or OPENAI_SVG_MODEL)')
+    ap.add_argument('--svg-effort', choices=['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+                    help='SVG-author reasoning; default high for realistic, medium for chibi')
     ap.add_argument('--complexity', choices=['low', 'medium', 'high'], default='medium',
                     help='how much the model plans before drawing (no extra fee; higher drifts more from the base)')
-    ap.add_argument('--quality', choices=['low', 'medium', 'high'], default='medium',
-                    help='quality of the reference image the SVG is authored from')
+    ap.add_argument('--quality', choices=['low', 'medium', 'high'],
+                    help='reference-image quality; default high for realistic, medium for chibi')
     ap.add_argument('--size', default='auto', help='reference image size, "auto" or WIDTHxHEIGHT (multiples of 16)')
     ap.add_argument('--api-key-stdin', action='store_true', help='read the OpenAI key from stdin')
     args = ap.parse_args()
@@ -469,6 +551,9 @@ def main():
     if args.check:
         print('OpenAI: FOUND (OPENAI_API_KEY)' if os.environ.get('OPENAI_API_KEY') else 'OpenAI: MISSING')
         return 0
+    args.model = args.model or ('gpt-image-2.6-sunburst' if args.style == 'realistic' else MODEL)
+    args.quality = args.quality or ('high' if args.style == 'realistic' else 'medium')
+    args.svg_effort = args.svg_effort or ('high' if args.style == 'realistic' else 'medium')
     modes = [bool(args.prompt), bool(args.base), bool(args.adapt)]
     if sum(modes) != 1:
         ap.error('give exactly one of --prompt, --base or --adapt')
@@ -509,10 +594,13 @@ def main():
             raw = request_svg(args, prompt, key)
         except Fail as error:
             message = redact(str(error), key)
-            hint = HINTS[error.kind]
-            if error.kind == 'request' and re.search(r'output_format|svg|complexity', message, re.I):
-                hint = (f'{args.model} rejected SVG output; use gpt-image-2.6-flare or gpt-image-2.6-sunburst, '
-                        'or use the basic SVG branch.')
+            hint = VECTOR_HINTS[error.kind]
+            if error.kind == 'request' and re.search(r'svg\.model|svg model', message, re.I):
+                hint = (f'select an available SVG author with --svg-model or OPENAI_SVG_MODEL '
+                        f'(default {SVG_MODEL}).')
+            elif error.kind == 'request' and re.search(r'output_format|svg|complexity', message, re.I):
+                hint = (f'{args.model} rejected SVG output; use gpt-image-2.6-flare or '
+                        'gpt-image-2.6-sunburst with a supported SVG-author model.')
             print(f'ERROR [{error.kind}] openai: {message}', file=sys.stderr)
             print(f'HINT {hint}', file=sys.stderr)
             return 1
@@ -525,7 +613,7 @@ def main():
         text, notes = adapt(raw, cid, args.width, args.height, args.model if (args.base or args.prompt) else '')
     except (ET.ParseError, ValueError) as error:
         print(f'ERROR [response] the SVG cannot be adapted: {error}', file=sys.stderr)
-        print('HINT use the basic SVG branch, or try once more', file=sys.stderr)
+        print('HINT the AI SVG branch stopped; fix the generated response before trying again', file=sys.stderr)
         return 1
     out_path = os.path.join(args.out, f'{cid}.svg')
     with open(out_path, 'w', encoding='utf-8') as f:

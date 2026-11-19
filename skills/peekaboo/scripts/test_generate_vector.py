@@ -21,7 +21,7 @@ sys.path.insert(0, HERE)
 import generate_vector  # noqa: E402
 
 TYPES = {'model': str, 'prompt': str, 'n': int, 'output_format': str, 'size': str, 'quality': str,
-         'complexity': str}
+         'complexity': str, 'svg': dict}
 
 # What a model answer may look like: square canvas, background, title, <style>, a transformed part, long decimals.
 RAW = '''<?xml version="1.0"?>
@@ -33,13 +33,14 @@ RAW = '''<?xml version="1.0"?>
   <path class="st0" d="M312.123456 1000C312 820 420 760 512 760S712 820 712 1000Z"/>
   <ellipse fill="url(#skin)" cx="512" cy="560" rx="200.555" ry="230"/>
   <g id="pb-face">
+    <ellipse fill="#4d345c" cx="512" cy="570" rx="300" ry="270"/>
     <g id="pb-eyes" transform="translate(0 4.04)">
       <ellipse fill="#fff" cx="440" cy="580" rx="40" ry="44"/>
       <ellipse fill="#fff" cx="584" cy="580" rx="40" ry="44"/>
       <g id="pb-pupils" fill="#1b1c22"><circle cx="440" cy="584" r="22.4999"/><circle cx="584" cy="584" r="22.5"/></g>
     </g>
   </g>
-  <path id="pb-keepsake" fill="#1b1c22" d="M330 560C300 400 360 300 420 280L380 200l100 70 40-100 60 80 100-90z"/>
+  <path id="pb-keepsake" fill="#1b1c22" d="M420 300L380 220l100 70 40-130 60 80 100-80-80 140z"/>
 </svg>'''
 
 
@@ -53,6 +54,9 @@ class Mock(http.server.BaseHTTPRequestHandler):
         body = json.loads(self.rfile.read(int(self.headers['Content-Length'])))
         Mock.seen.append({'path': self.path, 'body': body})
         status, reply = Mock.answer or (200, {'data': [{'b64_json': base64.b64encode(RAW.encode()).decode()}]})
+        if body.get('output_format') == 'svg' and not body.get('svg', {}).get('model'):
+            status, reply = 400, {'error': {'message': "SVG generation requires 'svg.model'.",
+                                            'type': 'invalid_request_error', 'param': 'svg.model'}}
         for name, value in body.items():
             if type(value) is not TYPES.get(name, type(None)):
                 status, reply = 400, {'error': {'message': f"Invalid parameter '{name}'.", 'type':
@@ -99,6 +103,9 @@ class GenerateVectorTest(unittest.TestCase):
         self.assertTrue(Mock.seen[0]['path'].endswith('/images/generations'))
         self.assertEqual((body['model'], body['n'], body['output_format'], body['complexity']),
                          ('gpt-image-2.6-flare', 1, 'svg', 'medium'))
+        self.assertEqual(body['svg'], {'model': 'gpt-5.4-mini',
+                                       'reasoning': {'effort': 'medium'}})
+        self.assertEqual(body['quality'], 'medium')
         self.assertIn('class="pb-keepsake"', body['prompt'])
         self.assertIn('viewBox "0 0 400 500"', body['prompt'])
         self.assertNotIn('Gantz', body['prompt'])  # comments may name a franchise
@@ -114,7 +121,24 @@ class GenerateVectorTest(unittest.TestCase):
         self.assertIn('small orange cat with a pink scarf', body['prompt'])
         self.assertNotIn('Current simple SVG', body['prompt'])
         self.assertEqual(body['output_format'], 'svg')
+        self.assertEqual(body['svg'], {'model': 'gpt-5.4-mini',
+                                       'reasoning': {'effort': 'medium'}})
         self.assertEqual(result.stdout.strip(), os.path.join(self.out, 'mochi.svg'))
+
+    def test_svg_author_can_be_overridden(self):
+        result = self.run_script('--prompt', 'a small blue robot', '--id', 'bolt',
+                                  '--svg-model', 'custom-svg-author')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(Mock.seen[0]['body']['svg'], {'model': 'custom-svg-author',
+                                                       'reasoning': {'effort': 'medium'}})
+
+    def test_realistic_uses_high_quality_sunburst_and_svg_reasoning(self):
+        result = self.run_script('--prompt', 'a small fire fox', '--id', 'vixi', '--style', 'realistic')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        body = Mock.seen[0]['body']
+        self.assertEqual(body['model'], 'gpt-image-2.6-sunburst')
+        self.assertEqual(body['quality'], 'high')
+        self.assertEqual(body['svg']['reasoning'], {'effort': 'high'})
 
     def test_check_reports_key_availability_without_value(self):
         env = dict(os.environ, OPENAI_API_KEY='sk-never-print')
@@ -147,8 +171,9 @@ class GenerateVectorTest(unittest.TestCase):
         with open(raw, 'w', encoding='utf-8') as f:
             f.write(RAW.replace('id="pb-keepsake"', 'id="hair"'))
         result = self.run_script('--adapt', raw, '--id', 'kei', key=None)
-        self.assertEqual(result.returncode, 3, result.stderr)
-        self.assertIn('missing parts: pb-keepsake', result.stderr)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn('quality check failed: pb-keepsake appears 0 times', result.stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'kei.svg')))
         self.assertEqual(Mock.seen, [])
 
     def test_svg_rejected_by_model(self):
@@ -159,11 +184,38 @@ class GenerateVectorTest(unittest.TestCase):
         self.assertIn('ERROR [request]', result.stderr)
         self.assertIn('gpt-image-2.6-flare', result.stderr)
         self.assertNotIn('SECRET', result.stderr)
+        self.assertNotIn('basic SVG', result.stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'raw.svg')))
+
+    def test_missing_svg_author_stops_without_adapted_output(self):
+        Mock.answer = (400, {'error': {'message': "SVG generation requires 'svg.model'.",
+                                       'type': 'invalid_request_error', 'param': 'svg.model'}})
+        result = self.run_script('--prompt', 'a small fire fox', '--id', 'vixi')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("ERROR [request]", result.stderr)
+        self.assertIn("OPENAI_SVG_MODEL", result.stderr)
+        self.assertNotIn('basic SVG', result.stderr)
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'raw.svg')))
+        self.assertFalse(os.path.exists(os.path.join(self.out, 'vixi.svg')))
 
     def test_round_numbers_keeps_numbers_apart(self):
         root = ET.fromstring('<svg xmlns="http://www.w3.org/2000/svg"><path d="M1.004.5L.04.5"/></svg>')
         generate_vector.round_numbers(root, 400)
         self.assertEqual(root[0].get('d'), 'M1 0.5L0 0.5')
+
+    def test_adapter_rejects_duplicate_anatomy(self):
+        duplicate = RAW.replace('</g>\n  <path id="pb-keepsake"',
+                                '</g>\n    <ellipse fill="#fff" cx="440" cy="580" rx="40" ry="44"/>\n'
+                                '  <path id="pb-keepsake"')
+        with self.assertRaisesRegex(ValueError, 'duplicate'):
+            generate_vector.adapt(duplicate, 'test', 80, 100)
+
+    def test_adapter_rejects_keepsake_that_contains_half_the_mascot(self):
+        noisy = RAW.replace('id="pb-keepsake"', 'id="pb-keepsake"')
+        noisy = noisy.replace('M420 300L380 220l100 70 40-130 60 80 100-80-80 140z',
+                              'M420 1000L380 160l100 70 40-130 60 80 100-80-80 900z')
+        with self.assertRaisesRegex(ValueError, 'keepsake spans more'):
+            generate_vector.adapt(noisy, 'test', 80, 100)
 
 
 if __name__ == '__main__':

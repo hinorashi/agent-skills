@@ -1,9 +1,11 @@
 # Direct AI SVG generation (optional)
 
 OpenAI's `gpt-image-2.6-flare` and `gpt-image-2.6-sunburst` can answer with an SVG. The AI SVG branch sends a
-plain-language character brief to the generation endpoint, then adapts the answer to the mascot parts contract. There
-is no separate concept-art request. The Basic SVG branch is the fallback: if generation fails, the agent draws the
-mascot from the same brief without another paid request. OpenAI bills this optional branch and it needs network access.
+plain-language character brief to the generation endpoint. The top-level image model renders the internal reference,
+while a separate text model selected with `svg.model` authors the SVG. The skill defaults the SVG author to
+`gpt-5.4-mini`; `OPENAI_SVG_MODEL` or `--svg-model` can override it. There is no separate concept-art request.
+Basic SVG and AI SVG are separate, mutually exclusive choices. If AI SVG fails, the process stops and reports the
+error; it never silently draws a local replacement. OpenAI bills this optional branch and it needs network access.
 
 ## 1. Why the brief is text
 
@@ -29,10 +31,11 @@ The form has exactly two creation branches:
 
 | Field | Notes | Default |
 |---|---|---|
-| **Drawing method** | **Basic SVG** (agent-drawn, no provider call) or **AI SVG** (Flare; Sunburst when requested); say that OpenAI bills the AI branch | Basic SVG |
+| **Drawing method** | **Basic SVG** (agent-drawn, no provider call) or **AI SVG** (Sunburst for realistic, Flare for chibi); say that OpenAI bills the AI branch | Basic SVG |
 
 The API key field appears only for AI SVG. Blank uses `OPENAI_API_KEY`; a pasted key is read with `--api-key-stdin`,
-used for this run only, never saved, echoed or written to files.
+used for this run only, never saved, echoed or written to files. The optional `OPENAI_SVG_MODEL` variable overrides
+the default `gpt-5.4-mini` SVG author when that model is unavailable to the account.
 
 ## 3. Generate SVG from the character brief
 
@@ -43,12 +46,15 @@ do not name franchises, brands, studios, artists or real people.
 ```bash
 python3 <skill-dir>/scripts/generate_vector.py --prompt "small orange cat, pink scarf, tall ears, shy smile" \
   --id <id> --out <temp-dir>/peekaboo-<id>/vector \
-  [--model gpt-image-2.6-sunburst] [--style realistic] [--width 80 --height 100] \
+  [--model gpt-image-2.6-sunburst] [--svg-model gpt-5.4-mini] \
+  [--style realistic] [--width 80 --height 100] \
   [--complexity low|medium|high] [--notes "softer fur shading"]
 ```
 
-`--complexity` defaults to `medium` and has no separate fee. Higher complexity can add detail but also drift from the
-brief. Use Flare by default for speed; use Sunburst for more detail when the user asks.
+`--complexity` defaults to `medium` and controls the reference-image planning. Higher complexity can add detail but
+also drift from the brief. Quality and SVG-author reasoning are selected by style: realistic uses Sunburst with
+`--quality high --svg-effort high`; chibi uses Flare with medium quality/reasoning. Override them only when the user
+asks. Higher SVG-author reasoning can increase the token cost of the SVG stage.
 
 The script writes `vector/raw.svg` (the untouched answer) and `vector/<id>.svg` (the adapted result):
 
@@ -61,20 +67,51 @@ The script writes `vector/raw.svg` (the untouched answer) and `vector/<id>.svg` 
 - runs `check_mascot_svg.py`.
 
 Exit codes: `0` ready; `3` written but the check fails, usually because a part is missing; `1` provider, network or
-response error; `2` invalid usage. Do at most one extra paid call after a temporary rate-limit or server error.
+response error; `2` invalid usage. Do at most one extra paid call after a temporary rate-limit or server error. Any
+nonzero exit ends the AI SVG process. Do not preview or install a partial result.
 
-## 4. Fix or fall back
+The structural checker is not the visual-quality gate. Before writing the adapted result, `quality_issues()` also
+rejects:
+
+- missing, duplicate or incorrectly nested animated groups;
+- exact duplicate painted shapes, which usually means duplicated eyes, pupils or facial highlights;
+- a `pb-keepsake` group taller than half the canvas, which usually means the whole wings, head or body were placed
+  inside the keepsake;
+- a `pb-face` narrower than 38% of the canvas, which makes the mascot face illegible at actual size.
+
+Those failures return a nonzero exit and leave only `raw.svg` for diagnosis. Do not treat "the parts check passed" as
+visual approval, and do not preview a rejected result.
+
+## 4. Fix within the AI branch
 
 On exit code `3` or a `WARN`:
 
 - **Missing part**: find the rendered eyes, pupils, face and keepsake, wrap them in the missing `pb-*` groups, and
   run the checker again. Re-adapt a saved response without paying: `generate_vector.py --adapt raw.svg --id <id> --out
   vector`.
-- **Over about 15 KB**: remove tiny detail shapes, try once at `--complexity low`, or use Basic SVG.
-- **Off-model**: retry once with a precise `--notes` correction, then use Basic SVG.
+- **Over about 15 KB**: remove tiny detail shapes by hand without changing the design, or stop the process. Do not
+  start a free local redraw.
+- **Off-model**: report it to the user and stop, or retry once only when the user explicitly approves another paid call.
 
 If OpenAI rejects the key, has no credit/model access, filters the prompt, or the response cannot be adapted, say
-what happened in one line and continue with Basic SVG. Never block mascot creation on the paid branch.
+what happened, include the exit code and `HINT`, and stop. Never switch to Basic SVG in the same run. The user may
+explicitly choose Basic SVG in a separate run.
+
+The API request must contain both model roles:
+
+```json
+{
+  "model": "gpt-image-2.6-flare",
+  "output_format": "svg",
+  "svg": {
+    "model": "gpt-5.4-mini"
+  }
+}
+```
+
+`model` selects the image model that creates the reference. `svg.model` selects the text model that authors the SVG.
+Do not treat an error for `svg.model` as a Flare/Sunburst error. Report the error and stop; a later retry can choose an
+available SVG author with `--svg-model` or `OPENAI_SVG_MODEL`.
 
 ## 5. Preview and approve
 
@@ -89,6 +126,7 @@ Check the actual-size poses: only the face, eyes and pupils should move. The app
 Approve / Cancel / freeform textbox contract.
 
 - A small change ("warmer hair", "smaller ears") edits the SVG directly; do not pay again.
-- A design change repeats the selected branch once from an updated brief, or switches to Basic SVG.
+- A design change repeats the selected AI branch once only after the user approves the next paid request. Switching to
+  Basic SVG requires a new, explicit selection.
 - `raw.svg` and the `vector/` folder stay in the scratch folder and are deleted after approval or cancellation. Only
   the chosen `<id>.svg` goes into the app.

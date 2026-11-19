@@ -101,8 +101,9 @@ python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> --concept <
 
 Say in the approval message that the concept is the target and the SVG is what goes into the app.
 
-To get closer to the concept than a hand drawing allows, the user can also choose the vector upgrade: an OpenAI SVG
-model redraws your basic SVG richer, and the basic one stays the fallback (`references/vector-upgrade.md`).
+To get closer to the concept than a hand drawing allows, the user can explicitly choose AI SVG in a separate run
+(`references/vector-upgrade.md`). If that AI request fails, the process reports the error and stops; it never silently
+uses the hand drawing instead.
 
 ## 5. Change requests and cleanup
 

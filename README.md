@@ -43,16 +43,28 @@ sequenceDiagram
     BE->>BE: Read OPENAI_API_KEY or a pasted key on stdin
     Note over BE: Never save or print the key
     BE->>AI: Request SVG generation
-    Note over BE,AI: Flare is the default model, Sunburst is optional, and the request returns SVG from text"
-    AI-->>BE: Static SVG
-    opt Provider failure or unusable AI result
-      BE-->>UI: Report one-line AI failure
-      BE->>BE: Fall back to local Basic SVG drawing
+    Note over BE,AI: The selected image model renders the reference and svg.model writes the vector
+    alt Provider succeeds
+      AI-->>BE: Static SVG
+    else Provider failure
+      break Stop on AI request failure
+        AI--xBE: Return an error
+        BE-->>UI: Report error and nonzero exit code
+        UI-->>U: AI SVG process stopped
+        Note over UI,BE: Do not draw, preview or install a Basic SVG replacement
+      end
     end
   end
 
   loop Until approved or cancelled
     BE->>BE: Adapt and validate SVG parts, animation, size and safety
+    opt AI SVG validation fails
+      break Stop on AI SVG validation failure
+        BE-->>UI: Report validation error and stop
+        UI-->>U: AI SVG process stopped
+        Note over UI,BE: No local replacement and no installation
+      end
+    end
     BE-->>UI: Validated mascot, reference and checks
     UI-->>U: Open localhost preview
     U->>UI: Approve, Cancel or type a change
@@ -73,7 +85,8 @@ sequenceDiagram
 
 For an AI run, the API's SVG endpoint accepts text only. A photo or sketch stays local; the agent reads its traits
 and sends a generic description, not the image. The model result is still adapted and checked before the user sees it.
-If the provider fails, the same request continues through the Basic SVG branch.
+If the provider fails or its SVG cannot be validated, the AI SVG process stops immediately. The application is not
+changed and no local SVG is substituted. Basic SVG can only be used when the user explicitly chooses it in a new run.
 
 ## Install
 
@@ -144,13 +157,15 @@ another project. The others are scaled from how long the skill's test runs took,
 
 Actual cost depends on the model and its credit multiplier, how large the app is, and how many follow-up tweaks you ask for.
 
-Optional AI SVG generation is billed separately by OpenAI. `gpt-image-2.6-flare` is the default; Sunburst is used
-when more detail is requested. OpenAI charges for the internal reference image plus the tokens spent writing the SVG.
-It is off unless the user chooses the AI SVG branch.
+Optional AI SVG generation is billed separately by OpenAI. Flare is used for chibi; realistic uses Sunburst, high
+reference quality and high SVG-author reasoning by default. OpenAI charges for the internal reference image plus the
+tokens spent writing the SVG. It is off unless the user chooses the AI SVG branch.
 
 ## OpenAI API key for AI SVG
 
-AI SVG generation uses `OPENAI_API_KEY`.
+AI SVG generation uses `OPENAI_API_KEY`. The optional `OPENAI_SVG_MODEL` selects the text model that authors SVG
+markup; it defaults to `gpt-5.4-mini`. This is separate from the Flare/Sunburst image model that renders the
+reference.
 
 An AI agent only sees the environment variables of the program that started it: VS Code, the Copilot CLI or your
 terminal. A variable you `export` in one terminal tab is invisible to an agent that was started elsewhere. Set the key
@@ -158,7 +173,7 @@ once, in a place that program reads, then restart it.
 
 | Provider | Variables |
 |---|---|
-| OpenAI | `OPENAI_API_KEY` |
+| OpenAI | `OPENAI_API_KEY`, optional `OPENAI_SVG_MODEL` |
 
 **Linux and macOS.** Keep the keys in a private file outside every repository:
 
@@ -166,6 +181,7 @@ once, in a place that program reads, then restart it.
 mkdir -p ~/.config/agent-keys
 cat > ~/.config/agent-keys/env <<'EOF'
 export OPENAI_API_KEY='sk-...'
+# export OPENAI_SVG_MODEL='gpt-5.4-mini'
 EOF
 chmod 600 ~/.config/agent-keys/env
 ```
@@ -182,6 +198,8 @@ echo '[ -f ~/.config/agent-keys/env ] && . ~/.config/agent-keys/env' >> ~/.bashr
 
 ```powershell
 [Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'sk-...', 'User')
+# Optional:
+[Environment]::SetEnvironmentVariable('OPENAI_SVG_MODEL', 'gpt-5.4-mini', 'User')
 ```
 
 **Restart the agent.** Quit VS Code completely (every window, not just *Reload Window*) and open it again. On Linux, if
