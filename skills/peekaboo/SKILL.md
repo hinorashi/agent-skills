@@ -1,8 +1,8 @@
 ---
 name: peekaboo
-description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from behind page edges at random free spots, looks around, blinks and hides again. It leaves a keepsake, such as a hair tuft, ears or a hat tip, above the edge that users can click to call it back. Never covers the UI. Toggled with a keyboard shortcut. Offers ready-made characters (Kei the spiky-haired boy, Mochi the shy cat, Bolt the curious robot), designs a new one from an interview, or turns the user's own image (photo, pet, sketch, favorite character) into one after an eligibility check, in chibi or realistic style, shows a preview page for approval, then wires it in, replacing an existing mascot if the user chooses. Offers to update a mascot installed by an older version of this skill. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a website or web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
+description: Creates a custom on-screen mascot for a web app. An original SVG character peeks out from page edges at random free spots, looks around, blinks and hides. It leaves a keepsake (hair tuft, ears, hat tip) above the edge that users click to call it back. Never covers the UI; keyboard toggle. Offers ready-made characters (Kei, a spiky-haired boy; Mochi, a shy cat; Bolt, a robot), designs a new one from an interview, or turns the user's image (photo, pet, sketch, favorite character) into one after an eligibility check, in chibi or realistic style, previews it for approval, then wires it in, replacing an existing mascot if the user chooses. Can paint concept art first with an OpenAI or Bedrock image model. Offers to update a mascot installed by an older version of this skill. Use whenever someone wants a mascot, buddy, pet, easter egg, peeking or hiding character, or a playful animated companion in a web app, even if they don't say "mascot", for example "make a little guy peek out from my header".
 license: MIT
-compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the SVG checker needs Python 3.
+compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the scripts need Python 3. Optional concept art needs network access and an OpenAI or Amazon Bedrock key.
 metadata:
   author: hinorashi
   version: "1.5.0"
@@ -43,6 +43,13 @@ can come with a concrete default. Check for a mascot that is already installed:
 python3 <skill-dir>/scripts/find_mascot.py <project-dir>
 ```
 
+For a new or image-based character, also check which image-model credentials are available (optional concept art,
+`references/concept-art.md`):
+
+```bash
+python3 <skill-dir>/scripts/generate_concept.py --check
+```
+
 An app gets one mascot. If one is found, the first form also asks whether to **replace** it or **keep** it and stop
 (`references/replacing.md`).
 
@@ -80,6 +87,9 @@ pet and saves a round when it is a person.
 | *New only:* **Look** | species/type, colors/outfit, signature feature | none, so ask |
 | *New / image:* **Personality** | e.g. shy, curious, sleepy, cheeky, stoic | curious |
 | *New / image:* **Keepsake** | the part left above the edge: hair tuft, ears, antenna, hat tip… or none | top-most signature feature |
+| *New / image:* **Concept art** | paint a polished concept first with **OpenAI** or **Amazon Bedrock**, then redraw it as the SVG; say which providers were found in the environment and that the provider bills it (`references/concept-art.md` §1) | none |
+| *Concept art only:* **API key** | blank uses the environment; a pasted key is used for this run only, never saved | blank |
+| *Image + concept art:* **Send my image to the provider?** | yes for a closer likeness; no sends only a text description | no |
 | **Where to hide** | header, sidebar, panels, footer, cards… | propose from the app's layout |
 | **Shortcut** | show/hide key; the power key (turn it off entirely) is the same plus Shift | the character's suggested one, else Alt + first letter, if free (check the Shift variant too) |
 | **Keepsake time** | seconds the keepsake stays | 10 s, configurable |
@@ -99,6 +109,9 @@ Draft in a scratch folder outside the app's source tree (`<temp-dir>/peekaboo-<i
 `character.json` with a `style` and a named `palette`, optional `<id>.css`) so nothing touches the app before
 approval.
 
+If the user chose concept art, generate it first and draw from it (`references/concept-art.md` §2–4): keys go on
+stdin only, prompts name no franchise, brand or real person, and a failure falls back to drawing without it.
+
 Read `references/character-design.md` (it covers both styles). Write the SVG with the `pb-face`, `pb-eyes`,
 `pb-pupils` and `pb-keepsake` parts, a viewBox matching the size ratio (40 × 50 for 80 × 100), and the keepsake
 reaching the top. Validate it:
@@ -117,14 +130,14 @@ For a new or image-based character, build the preview and serve it, in the backg
 (built-in browsers often block `file://` pages):
 
 ```bash
-python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> [--reference path/to/image.png] --serve
+python3 <skill-dir>/scripts/make_preview.py <temp-dir>/peekaboo-<id> [--reference path/to/image.png] [--concept path/to/concept-1.png] --serve
 ```
 
 It prints the file path, then a `http://127.0.0.1:<port>/` URL that serves only that page. The page shows the
 reference next to the drawing, the mascot at 2x and actual size, the colors as swatches, every pose, the keepsake at an
 edge, a live peek playing the routine, and the parts check. Open the URL in your browser tool if you have one and look
 at it before the user does. Without a reference path (the image was only attached to the chat), the page simply has
-no reference column.
+no reference column. `--concept` adds the generated concept art next to it.
 
 Then ask for approval with **one single-choice question**, not a free-text "reply approve". It has exactly three
 ways to answer:
@@ -142,8 +155,9 @@ complaining that details are missing or by offering guessed options; if the type
 likely change and say what you changed.
 
 Put the link to the page (URL and file path) and a one-line summary (name, style, keepsake, 3–5 traits in plain words)
-in the question. When done, stop the server and delete the scratch folder and the preview: the preview holds a copy of
-the reference image. Gallery characters skip this step unless the user asks to see one.
+in the question. A change to the drawing edits the SVG; only a change to the design itself regenerates the concept
+(`references/concept-art.md` §5). When done, stop the server and delete the scratch folder and the preview: the
+preview holds a copy of the reference image, and the folder holds any concept art. Gallery characters skip this step unless the user asks to see one.
 
 ### 4. Wire it into the app as an optional feature
 
@@ -272,10 +286,12 @@ a screenshot path if you took one, and mention any edge you skipped because it w
 - `scripts/check_mascot_svg.py`: validates an SVG against the parts contract
 - `scripts/check_reference_image.py`: technical check of a user's reference image (format, size, dimensions)
 - `scripts/find_mascot.py`: finds a mascot already in the project, or leftovers of a replaced one (`--name`)
-- `scripts/make_preview.py`: standalone HTML preview of a character folder (`--serve` for a localhost URL), for approval before wiring
+- `scripts/make_preview.py`: standalone HTML preview of a character folder (`--serve` for a localhost URL, `--concept` for concept art), for approval before wiring
+- `scripts/generate_concept.py`: optional concept art with OpenAI or Amazon Bedrock image models (`--check` for credentials)
 - `references/behavior.md`: lifecycle, placement math, invariants, personality tuning, gotchas
 - `references/character-design.md`: drawing guide for chibi and realistic styles, parts contract, originality
 - `references/from-image.md`: reading the user's image, eligibility, traits to keep, preview and cleanup
+- `references/concept-art.md`: optional concept art: providers, keys, consent, prompts, redrawing as SVG, cleanup
 - `references/replacing.md`: one mascot per app; replacing an installed or hand-built one
 - `references/updating.md`: offering and applying updates to an installed mascot, changelog, releasing a version
 - `references/testing.md`: deterministic browser tests

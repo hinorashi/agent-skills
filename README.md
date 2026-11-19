@@ -83,6 +83,61 @@ another project. The others are scaled from how long the skill's test runs took,
 
 Actual cost depends on the model and its credit multiplier, how large the app is, and how many follow-up tweaks you ask for.
 
+Optional concept art (OpenAI or Amazon Bedrock image models) is billed separately by that provider, per image, with
+your own key. It is off unless you choose it.
+
+## API keys for concept art
+
+An AI agent only sees the environment variables of the program that started it: VS Code, the Copilot CLI or your
+terminal. A variable you `export` in one terminal tab is invisible to an agent that was started elsewhere. Set the key
+once, in a place that program reads, then restart it.
+
+| Provider | Variables |
+|---|---|
+| OpenAI | `OPENAI_API_KEY` |
+| Amazon Bedrock (API key) | `AWS_BEARER_TOKEN_BEDROCK`, `AWS_REGION` (e.g. `us-east-1`) |
+| Amazon Bedrock (AWS credentials) | `AWS_PROFILE` or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`; needs `pip install boto3` |
+
+**Linux and macOS.** Keep the keys in a private file outside every repository:
+
+```bash
+mkdir -p ~/.config/agent-keys
+cat > ~/.config/agent-keys/env <<'EOF'
+export OPENAI_API_KEY='sk-...'
+export AWS_BEARER_TOKEN_BEDROCK='...'
+export AWS_REGION='us-east-1'
+EOF
+chmod 600 ~/.config/agent-keys/env
+```
+
+Load it from your shell profile. Use `~/.profile` (Linux) or `~/.zprofile` (macOS) so apps started from the desktop or
+Dock also get it, plus `~/.bashrc` or `~/.zshrc` for terminals:
+
+```bash
+echo '[ -f ~/.config/agent-keys/env ] && . ~/.config/agent-keys/env' >> ~/.profile
+echo '[ -f ~/.config/agent-keys/env ] && . ~/.config/agent-keys/env' >> ~/.bashrc
+```
+
+**Windows (PowerShell).** Set user variables, which every new program gets:
+
+```powershell
+[Environment]::SetEnvironmentVariable('OPENAI_API_KEY', 'sk-...', 'User')
+[Environment]::SetEnvironmentVariable('AWS_BEARER_TOKEN_BEDROCK', '...', 'User')
+[Environment]::SetEnvironmentVariable('AWS_REGION', 'us-east-1', 'User')
+```
+
+**Restart the agent.** Quit VS Code completely (every window, not just *Reload Window*) and open it again. On Linux, if
+it still sees nothing, log out and back in, or start it from a terminal with `code .`. For the Copilot CLI or other
+terminal agents, open a new terminal. Then check what the agent sees; it prints only FOUND or MISSING, never the
+values:
+
+```bash
+python3 skills/peekaboo/scripts/generate_concept.py --check
+```
+
+Keep keys out of `.env` files in your projects, VS Code `settings.json` and anything you commit. Prefer a short-term
+or restricted key, and revoke a key you have pasted into a chat.
+
 ## Validate
 
 Kiểm thử công cụ release không cần cài dependency npm; test HTTPS cần openssl:

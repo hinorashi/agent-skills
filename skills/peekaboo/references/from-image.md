@@ -23,7 +23,9 @@ realistic. You never trace it, embed it or reproduce it.
 - **You cannot see images** (no vision or viewer tool): say so and fall back to a text description of the look.
 
 Leave the image where it is. Do not copy it into the app, commit it or upload it anywhere; the preview page embeds it
-only in a local file outside the app's source tree.
+only in a local file outside the app's source tree. The one exception is optional concept art: with the user's explicit
+consent for this run, after the checks in §2, it may be sent to the image provider the user chose
+(`references/concept-art.md`). Without consent, send only a text description of the traits.
 
 ## 2. Decide whether it is eligible
 
