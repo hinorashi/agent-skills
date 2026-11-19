@@ -146,6 +146,12 @@ Kiểm thử công cụ release không cần cài dependency npm; test HTTPS c�
 node --test skills/release/scripts/release.test.mjs
 ```
 
+Kiểm thử script tạo concept art của peekaboo chạy với máy chủ giả lập cục bộ, không cần khóa API và không tốn phí:
+
+```bash
+python3 -m unittest discover -s skills/peekaboo/scripts -p 'test_*.py'
+```
+
 Các tình huống đánh giá hành vi agent nằm trong
 [changelog/evals](skills/changelog/evals/evals.json) và
 [release/evals](skills/release/evals/evals.json); đây không phải benchmark đã chạy.

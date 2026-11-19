@@ -10,7 +10,20 @@ What an installed mascot needs to move to a newer engine (the **App changes**) i
 
 ## [Unreleased]
 
+### Added
+
+- Optional concept art: for a new or image-based mascot, an OpenAI or Amazon Bedrock image model can paint a concept
+  first (key from the environment or pasted for one run), shown next to the drawing in the preview; the mascot is still
+  redrawn as SVG.
+
+### Fixed
+
+- Concept art with OpenAI no longer fails with "Invalid type for 'n'": the image count is sent as a number.
+
 ### Changed
+
+- When concept art fails, the error says what went wrong (rejected key, no model access, no credit, content filter,
+  skill bug…) and what to do next; rate limits and provider errors are retried once.
 
 - Approving a preview is now one single-choice question: **Approve** (default), **Cancel**, or type what to change in
   the free-text box. Any typed answer counts as a change request, so there is always a place to describe the change.

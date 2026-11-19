@@ -21,6 +21,9 @@ amazon.titan-image-generator-v2:0. A --reference image is sent to the provider (
 IMAGE_VARIATION): only with the user's consent.
 
 Writes <out>/concept-1.png ... and prints their paths. Exit code: 0 ok, 1 provider or network error, 2 usage error.
+On exit code 1, stderr has two lines: "ERROR [<kind>] <provider>: <detail>" and "HINT <what to do>", where kind is
+auth, access, quota, rate_limit, content_filter, model, request, server, network, response or prompt. Rate limits
+and server errors are retried once (failed requests are not billed). Tests: test_generate_concept.py.
 Standard library only (boto3 is used for Bedrock only when there is no API key).
 """
 import argparse
@@ -28,6 +31,7 @@ import base64
 import json
 import os
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -47,10 +51,6 @@ STYLE = {
 SHEET = ('Character design for a small website mascot: one character, full body, front view, standing upright, '
          'centered, whole figure in frame, its top feature clearly visible, plain light background.')
 AVOID = 'text, letters, watermark, logo, signature, multiple characters, busy background, cropped figure, photo'
-
-
-class Fail(Exception):
-    pass
 
 
 def redact(text, secret):
@@ -98,22 +98,91 @@ def full_prompt(args):
     return f'{SHEET} {args.prompt.strip()} Style: {words}.{tail}'
 
 
-def post(url, body, headers, secret):
-    request = urllib.request.Request(url, data=body, headers=headers, method='POST')
+HINTS = {
+    'auth': 'the key was rejected or has expired; check the variable or paste a new key. Do not retry with the same key.',
+    'access': 'the key works but lacks access: enable the model for this account/region (Bedrock model access), '
+              'verify the OpenAI organization for image models, or try another --model.',
+    'quota': 'the account has no credit or quota left; the user must add billing with the provider.',
+    'rate_limit': 'still rate-limited after one retry; wait a minute and try once more, or skip the concept.',
+    'content_filter': 'the provider refused the prompt or image; rephrase with generic traits (no names, no real '
+                      'people), or skip the concept.',
+    'model': 'unknown model for this account/region; pass another --model or --region.',
+    'request': 'the request format was rejected; this is a bug in the skill, not the prompt. Do not retry; report it '
+               'and draw without a concept.',
+    'server': 'the provider had an internal error; try once more later, or skip the concept.',
+    'network': 'the provider could not be reached (offline, proxy or firewall); check the network or skip the concept.',
+    'response': 'the provider answered without an image; try once more, or skip the concept.',
+    'prompt': 'shorten or rephrase --prompt, then try again.',
+}
+
+
+class Fail(Exception):
+    def __init__(self, message, kind='response'):
+        super().__init__(message)
+        self.kind = kind
+
+
+def classify(status, error_type, code, message):
+    text = f'{error_type} {code} {message}'.lower()
+    if any(w in text for w in ('moderation', 'content_policy', 'safety', 'content filter', 'blocked by')):
+        return 'content_filter'
+    if 'insufficient_quota' in text or 'billing' in text:
+        return 'quota'
+    if status == 401 or 'invalid_api_key' in text or 'unrecognizedclient' in text or 'security token' in text:
+        return 'auth'
+    if status == 404 or 'model_not_found' in text or 'resourcenotfound' in text:
+        return 'model'
+    if status == 403 or 'accessdenied' in text or 'verified' in text:
+        return 'access'
+    if status == 429 or 'throttl' in text or 'rate_limit' in text:
+        return 'rate_limit'
+    if status >= 500:
+        return 'server'
+    return 'request'
+
+
+def describe_http_error(status, headers, raw):
+    """Pull type/code/message out of an OpenAI ({"error": {...}}) or Bedrock ({"message": ...}) error body."""
+    error_type = headers.get('x-amzn-ErrorType', '').split(':')[0]
+    code, message = '', raw.strip()
     try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
-            return json.loads(response.read())
-    except urllib.error.HTTPError as error:
-        detail = error.read().decode('utf-8', 'replace')[:600]
-        raise Fail(redact(f'HTTP {error.code} from {url}: {detail}', secret)) from None
-    except urllib.error.URLError as error:
-        raise Fail(redact(f'cannot reach {url}: {error.reason}', secret)) from None
+        body = json.loads(raw)
+    except ValueError:
+        body = None
+    if isinstance(body, dict):
+        inner = body.get('error') if isinstance(body.get('error'), dict) else body
+        error_type = inner.get('type') or inner.get('__type') or error_type
+        code = inner.get('code') or ''
+        param = inner.get('param')
+        message = (inner.get('message') or inner.get('Message') or message) + (f' (param: {param})' if param else '')
+    message = ' '.join(message.split())[:400]
+    return classify(status, error_type, str(code), message), f'HTTP {status} {error_type or code}'.strip() + f': {message}'
+
+
+def post(url, body, headers, secret):
+    for attempt in (1, 2):
+        request = urllib.request.Request(url, data=body, headers=headers, method='POST')
+        try:
+            with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
+                return json.loads(response.read())
+        except urllib.error.HTTPError as error:
+            kind, text = describe_http_error(error.code, error.headers, error.read().decode('utf-8', 'replace'))
+            if attempt == 1 and kind in ('rate_limit', 'server'):  # failed requests are not billed
+                wait = error.headers.get('Retry-After', '')
+                time.sleep(min(int(wait), 30) if wait.isdigit() else 5)
+                continue
+            raise Fail(redact(text, secret), kind) from None
+        except urllib.error.URLError as error:
+            raise Fail(redact(f'cannot reach {url}: {error.reason}', secret), 'network') from None
+        except TimeoutError:
+            raise Fail(f'no answer from {url} within {TIMEOUT} s', 'network') from None
 
 
 def openai(args, prompt, key, reference):
     base = os.environ.get('OPENAI_BASE_URL', 'https://api.openai.com/v1').rstrip('/')
     width, height = SIZES[args.size]
-    fields = {'model': args.model or OPENAI_MODEL, 'prompt': prompt, 'n': str(args.n),
+    # Typed for the JSON endpoint (n must be an integer); multipart turns every value into text.
+    fields = {'model': args.model or OPENAI_MODEL, 'prompt': prompt, 'n': args.n,
               'size': f'{width}x{height}', 'quality': args.quality}
     if args.transparent:
         fields['background'] = 'transparent'
@@ -143,9 +212,10 @@ def openai(args, prompt, key, reference):
 def bedrock(args, prompt, key, reference):
     model = args.model or BEDROCK_MODEL
     if not model.startswith(('amazon.nova-canvas', 'amazon.titan-image')):
-        raise Fail(f'unsupported Bedrock model {model!r}: use amazon.nova-canvas-v1:0 or amazon.titan-image-generator-v2:0')
+        raise Fail(f'unsupported Bedrock model {model!r}: use amazon.nova-canvas-v1:0 or amazon.titan-image-generator-v2:0',
+                   'model')
     if len(prompt) > 1024:
-        raise Fail(f'Bedrock prompts are limited to 1024 characters; this one has {len(prompt)}. Shorten --prompt.')
+        raise Fail(f'Bedrock prompts are limited to 1024 characters; this one has {len(prompt)}.', 'prompt')
     width, height = SIZES[args.size]
     config = {'numberOfImages': args.n, 'width': width, 'height': height, 'cfgScale': 6.5}
     if args.seed is not None:
@@ -170,16 +240,21 @@ def bedrock(args, prompt, key, reference):
     else:
         session = boto3_session()
         if session is None:
-            raise Fail('no Bedrock credentials: set AWS_BEARER_TOKEN_BEDROCK, or AWS credentials with boto3 installed')
+            raise Fail('no Bedrock credentials: set AWS_BEARER_TOKEN_BEDROCK, or AWS credentials with boto3 installed',
+                       'auth')
         client = session.client('bedrock-runtime', region_name=region, endpoint_url=args.bedrock_endpoint)
         try:
             response = client.invoke_model(modelId=model, body=body, contentType='application/json',
                                            accept='application/json')
-        except Exception as error:  # botocore errors carry the service message
-            raise Fail(f'Bedrock error: {error}') from None
+        except Exception as error:  # botocore ClientError carries the service error code and message
+            info = getattr(error, 'response', {}) or {}
+            status = info.get('ResponseMetadata', {}).get('HTTPStatusCode', 0)
+            code = info.get('Error', {}).get('Code', type(error).__name__)
+            message = ' '.join(str(error).split())[:400]
+            raise Fail(f'Bedrock {code}: {message}', classify(status, code, '', message)) from None
         result = json.loads(response['body'].read())
     if result.get('error'):
-        raise Fail(f"Bedrock error: {result['error']}")
+        raise Fail(f"Bedrock error: {result['error']}", classify(400, '', '', str(result['error'])))
     images = result.get('images') or []
     if not images:
         raise Fail(f'no image in the Bedrock response: {json.dumps(result)[:300]}')
@@ -245,7 +320,8 @@ def main():
     try:
         images = (openai if args.provider == 'openai' else bedrock)(args, prompt, key, reference)
     except Fail as error:
-        print(f'ERROR {redact(str(error), key)}', file=sys.stderr)
+        print(f'ERROR [{error.kind}] {args.provider}: {redact(str(error), key)}', file=sys.stderr)
+        print(f'HINT {HINTS[error.kind]}', file=sys.stderr)
         return 1
 
     os.makedirs(args.out, exist_ok=True)

@@ -64,8 +64,23 @@ python3 <skill-dir>/scripts/generate_concept.py --provider openai|bedrock --styl
 It writes `concept-1.png` (… `concept-N.png`) and prints the paths. Keep `--n 1` unless the user wants options: each
 image is billed. With the user's consent, `--reference` sends their image (OpenAI edits; Bedrock image variation,
 `--similarity 0.2–1.0`, default 0.5); the eligibility and permission rules of `references/from-image.md` §2 apply
-first. Without consent, describe the traits in `--prompt` instead. On an error (rejected key, no model access, content
-filter), report it in one line and continue drawing without a concept.
+first. Without consent, describe the traits in `--prompt` instead.
+
+On failure the script prints `ERROR [<kind>] …` and a `HINT` line; failed requests are not billed, and rate limits and
+server errors are already retried once. Report it to the user in one line, in plain words, then act on the kind:
+
+| Kind | Meaning | Do |
+|---|---|---|
+| `auth` | key rejected or expired | ask for another key or a fixed variable; never retry the same key |
+| `access`, `model` | no access to the model or region (Bedrock model access, OpenAI organization verification) | try another `--model` / `--region` once if the user agrees, else draw without a concept |
+| `quota` | no credit left | draw without a concept; the user adds billing with the provider |
+| `content_filter` | the provider refused the prompt or image | rephrase once with generic traits (no names, no real people), without the reference image if one was sent |
+| `prompt` | prompt too long | shorten it and run again |
+| `request` | the provider rejected the request format: a bug in this skill, not in the prompt | do not retry or patch the script on the fly; tell the user to update the skill, draw without a concept |
+| `rate_limit`, `server`, `network`, `response` | temporary or connection problem | one more try at most, then draw without a concept |
+
+Never loop on paid retries: at most one extra call per run unless the user asks. Whatever happens, the mascot is
+still drawn and previewed.
 
 ## 4. Redraw it as the SVG
 
