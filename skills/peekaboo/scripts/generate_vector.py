@@ -67,9 +67,8 @@ NUMBER = re.compile(r'-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?')
 MAX_BASE = 24000
 HEAVY_KB = 15
 ORIGINAL_ART_DIRECTION = (
-    'Original collectible-creature game illustration style: bold clean dark contours, rounded expressive shapes, '
-    'simple cel shading with 2-3 broad color tones per material, crisp highlights, lively silhouette, polished but '
-    'not photorealistic, and no painterly texture. Keep the creature design, anatomy and silhouette original.'
+    'Original collectible-creature game illustration style with bold clean contours, rounded shapes, broad 2-tone '
+    'cel shading and crisp highlights. Keep the creature design, anatomy and silhouette original.'
 )
 
 ET.register_namespace('', SVG_NS)
@@ -118,29 +117,22 @@ def render_prompt(subject, style, width, height, notes, from_base):
     proportions = ('head about 55-60% of the canvas height' if style == 'chibi'
                    else 'recognizable species anatomy with a deliberately large readable head, about 45-50% '
                         'of the canvas height and at least 38% of the canvas width')
-    intent = ('Redraw the small website mascot below as a polished, original SVG illustration of the same character.'
+    intent = ('Redraw the website mascot below as a polished original SVG of the same character.'
               if from_base else
-              'Draw a polished, original SVG illustration of the small website mascot described below.')
-    keeping = ('Keep: the same character, silhouette, front-view pose and framing' if from_base
-               else 'Use: a distinctive front-view pose and framing')
+              'Draw a polished original SVG website mascot from the brief below.')
+    keeping = ('Keep its character, silhouette and front framing.' if from_base
+               else 'Use a distinctive front-view silhouette.')
     text = (
-        f'{intent}\n\n{subject}'
-        f'{keeping} (head and upper body, the body cut off by the bottom edge), {proportions}, eyes near the middle '
-        'of the height, the stated colors, and the top-most signature feature touching the very top of the canvas.\n'
-        f'Art direction: {words}. Also apply this rendering direction: {ORIGINAL_ART_DIRECTION} '
-        'Keep it visually strong at a small size; refined, expressive shapes; each color in 2-3 tones; still clear at '
-        f'{width}x{height} pixels.\n'
-        'Readability: use one clean silhouette and one copy of each anatomical part. The face must be visually dominant, '
-        'high-contrast on both light and dark backgrounds, with exactly one mouth, exactly two eyes, and no stacked, '
-        'ghosted or duplicated copies of eyes, pupils, brows, teeth or facial highlights. Fewer large, deliberate '
-        'shapes are better than tiny decorative details at mascot size.\n'
-        f'Structure: one <svg> with viewBox "0 0 {vb_w} {vb_h}" (portrait {width}:{height}), transparent background '
-        'with no background shape, no text, no filters, masks or embedded images. Use these group ids exactly: '
-        '"pb-face" as the parent of the brows, eyes and mouth; "pb-eyes" inside pb-face as the only parent of both '
-        'complete eyes; "pb-pupils" inside pb-eyes as the only parent of all irises, pupils and eye highlights; '
-        '"pb-keepsake" only around the isolated top-most 10-20% signature feature, not around the wings, body or whole '
-        'head, drawn last. Do not paint any eye, pupil, mouth or keepsake shape outside its designated group. '
-        'Keep it light: about 100 shapes at most.'
+        f'{intent}\n\n{subject}{keeping} Show head and upper body, cut off at the bottom; {proportions}; '
+        'eyes near mid-height; the stated colors; and a signature feature touching the top.\n'
+        f'Art: {words}. {ORIGINAL_ART_DIRECTION} Make the face dominant and readable at {width}x{height}px '
+        'on light or dark backgrounds, using one silhouette, one mouth, two eyes and no duplicate anatomy. Prefer '
+        'large deliberate shapes over tiny detail.\n'
+        f'SVG: one transparent <svg>, viewBox "0 0 {vb_w} {vb_h}", no text, filters, masks or embedded images; about '
+        '100 shapes maximum. Group IDs and nesting: pb-face contains brows, eyes and mouth; pb-eyes is inside pb-face '
+        'and alone contains both complete eyes; pb-pupils is inside pb-eyes and alone contains irises, pupils and eye '
+        'highlights; pb-keepsake is drawn last around only the isolated top 10-20% signature feature. Paint each part '
+        'only inside its group.'
     )
     if notes:
         text += f'\nAlso: {notes.strip()}'

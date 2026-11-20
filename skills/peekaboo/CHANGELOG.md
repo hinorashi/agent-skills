@@ -7,6 +7,20 @@ no Git tags yet.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-11-20
+
+### Changed
+
+- Compressed the always-loaded skill workflow into a routing-focused guide, moving branch-specific detail behind
+  the existing references so invoking Peekaboo consumes fewer host-agent tokens without dropping behavior,
+  preview, replacement, update or validation requirements.
+- Shortened direct AI SVG prompts while preserving the required anatomy, group nesting, originality and output
+  constraints. Direct prompts now have a regression limit so future edits cannot quietly return the paid prompt to
+  its earlier size; gallery and Basic SVG remain the no-provider-cost defaults.
+
+What an installed mascot needs to move to a newer engine (the **App changes**) is in
+[references/updating.md](./references/updating.md).
+
 ## [1.6.1] - 2026-11-20
 
 ### Fixed

@@ -129,6 +129,13 @@ class GenerateVectorTest(unittest.TestCase):
                                        'reasoning': {'effort': 'low'}})
         self.assertEqual(result.stdout.strip(), os.path.join(self.out, 'mochi.svg'))
 
+    def test_direct_prompt_stays_compact(self):
+        prompt = generate_vector.build_prompt_from_description(
+            'a small orange cat with a pink scarf', 'chibi', 80, 100, '')
+        self.assertLessEqual(len(prompt), 1700)
+        self.assertIn('pb-face contains', prompt)
+        self.assertIn('pb-keepsake', prompt)
+
     def test_svg_author_can_be_overridden(self):
         result = self.run_script('--prompt', 'a small blue robot', '--id', 'bolt',
                                   '--svg-model', 'custom-svg-author')

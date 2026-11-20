@@ -10,7 +10,7 @@ Version is each skill's `metadata.version`; the link opens its changelog.
 |---|---|---|
 | [changelog](skills/changelog/SKILL.md) | [1.0.0](skills/changelog/CHANGELOG.md) | Viết và đối chiếu ghi chú `[Unreleased]` từ thay đổi thực tế; gộp mục trùng, giữ lịch sử đã phát hành và không tự commit/tag/push. |
 | [release](skills/release/SKILL.md) | [1.0.0](skills/release/CHANGELOG.md) | Phát hành có xác nhận trên GitHub/Gitea; ưu tiên quy trình của kho, kèm script độc lập và kiểm thử từ Ganttz cho kho phù hợp. |
-| [peekaboo](skills/peekaboo/SKILL.md) | [1.6.1](skills/peekaboo/CHANGELOG.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and create an original SVG in chibi or realistic style with Basic SVG or direct AI SVG generation. It validates the drawing and shows a preview for approval before touching your code. The mascot peeks out without covering the UI, blinks, looks around, hides and leaves a clickable keepsake. |
+| [peekaboo](skills/peekaboo/SKILL.md) | [1.6.2](skills/peekaboo/CHANGELOG.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and create an original SVG in chibi or realistic style with Basic SVG or direct AI SVG generation. It validates the drawing and shows a preview for approval before touching your code. The mascot peeks out without covering the UI, blinks, looks around, hides and leaves a clickable keepsake. |
 
 ![Kei, Mochi and Bolt](docs/gallery.png)
 

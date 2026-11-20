@@ -47,6 +47,18 @@ In the report, say the old and new versions, what the user can now do, and any l
 
 Newest first. Each entry says what changed and what the app needs beyond copying the new module.
 
+### 1.6.2
+
+- **Lower skill-run token use**: the core workflow is shorter and routes branch-specific work to references instead
+  of loading repeated detail into every invocation.
+- **Smaller paid SVG prompt**: direct AI SVG requests preserve the same structural and quality contract with fewer
+  instruction tokens, with low quality, complexity and SVG-author reasoning still defaulting to cost-conscious
+  settings.
+
+App changes:
+
+- None. Existing mascot behavior is unchanged; copy the module only to carry the 1.6.2 version stamp.
+
 ### 1.6.1
 
 - **Clear proxy failures**: `RemoteDisconnected` from the OpenAI SVG request is reported as a network error with the
