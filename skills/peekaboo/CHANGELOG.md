@@ -7,11 +7,22 @@ no Git tags yet.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-20
+
 ### Fixed
 
-- Long OpenAI SVG requests now enable TCP keepalive (`OPENAI_KEEPALIVE_IDLE=15` by default), and network errors report
-  the sanitized proxy route. This reduces idle disconnects through corporate proxies without automatically retrying
-  a potentially billed request.
+- OpenAI `RemoteDisconnected` failures are now classified as network errors with the sanitized proxy route instead
+  of escaping as a traceback. Long SVG requests still are not retried automatically because they may already have
+  been billed.
+- Long OpenAI SVG requests now attempt TCP keepalive (`OPENAI_KEEPALIVE_IDLE=15` by default), and network errors
+  report the sanitized proxy route. The proxy may still reject a long non-streaming request; the skill reports that
+  clearly instead of substituting a local drawing or retrying a potentially billed request.
+
+### Changed
+
+- AI SVG requests now default to low image quality, low complexity and low SVG-author reasoning to reduce cost and
+  latency at mascot size. Prompts request an original collectible-creature illustration with clean contours,
+  rounded shapes, broad cel shading and crisp highlights without naming or reproducing franchise artwork.
 
 What an installed mascot needs to move to a newer engine (the **App changes**) is in
 [references/updating.md](./references/updating.md).

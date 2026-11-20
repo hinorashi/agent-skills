@@ -7,6 +7,7 @@ show up here instead of on a paid call. Standard library only:
     python3 -m unittest discover -s skills/peekaboo/scripts -p 'test_*.py'
 """
 import base64
+import http.client
 import http.server
 import json
 import os
@@ -134,6 +135,17 @@ class GenerateConceptTest(unittest.TestCase):
         self.assertEqual(caught.exception.kind, 'network')
         self.assertIn('proxy.example:8080', str(caught.exception))
         self.assertNotIn('secret', str(caught.exception))
+
+    def test_remote_disconnect_is_reported_as_network_error(self):
+        with mock.patch('urllib.request.getproxies',
+                        return_value={'https': 'http://proxy.example:8080'}), \
+                mock.patch('urllib.request.urlopen',
+                           side_effect=http.client.RemoteDisconnected('Remote end closed connection without response')):
+            with self.assertRaises(generate_concept.Fail) as caught:
+                generate_concept.post('https://api.openai.com/v1/images/generations', b'{}', {}, 'sk-test')
+        self.assertEqual(caught.exception.kind, 'network')
+        self.assertIn('closed the connection before returning a response', str(caught.exception))
+        self.assertIn('proxy.example:8080', str(caught.exception))
 
     def test_openai_generation_sends_typed_json(self):
         result = self.run_script('--provider', 'openai', '--prompt', 'a fox', '--n', '2', '--size', 'portrait',

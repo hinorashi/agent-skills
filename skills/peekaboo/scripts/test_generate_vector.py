@@ -102,12 +102,16 @@ class GenerateVectorTest(unittest.TestCase):
         body = Mock.seen[0]['body']
         self.assertTrue(Mock.seen[0]['path'].endswith('/images/generations'))
         self.assertEqual((body['model'], body['n'], body['output_format'], body['complexity']),
-                         ('gpt-image-2.6-flare', 1, 'svg', 'medium'))
+                         ('gpt-image-2.6-flare', 1, 'svg', 'low'))
         self.assertEqual(body['svg'], {'model': 'gpt-5.4-mini',
-                                       'reasoning': {'effort': 'medium'}})
-        self.assertEqual(body['quality'], 'medium')
+                                       'reasoning': {'effort': 'low'}})
+        self.assertEqual(body['quality'], 'low')
         self.assertIn('class="pb-keepsake"', body['prompt'])
         self.assertIn('viewBox "0 0 400 500"', body['prompt'])
+        self.assertIn('Original collectible-creature game illustration style', body['prompt'])
+        self.assertIn('Keep the creature design, anatomy and silhouette original', body['prompt'])
+        self.assertNotIn('Pokémon', body['prompt'])
+        self.assertNotIn('Pokemon', body['prompt'])
         self.assertNotIn('Gantz', body['prompt'])  # comments may name a franchise
         self.assertTrue(os.path.isfile(os.path.join(self.out, 'raw.svg')))
         self.assertEqual(result.stdout.strip(), os.path.join(self.out, 'kei.svg'))
@@ -122,7 +126,7 @@ class GenerateVectorTest(unittest.TestCase):
         self.assertNotIn('Current simple SVG', body['prompt'])
         self.assertEqual(body['output_format'], 'svg')
         self.assertEqual(body['svg'], {'model': 'gpt-5.4-mini',
-                                       'reasoning': {'effort': 'medium'}})
+                                       'reasoning': {'effort': 'low'}})
         self.assertEqual(result.stdout.strip(), os.path.join(self.out, 'mochi.svg'))
 
     def test_svg_author_can_be_overridden(self):
@@ -130,15 +134,16 @@ class GenerateVectorTest(unittest.TestCase):
                                   '--svg-model', 'custom-svg-author')
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(Mock.seen[0]['body']['svg'], {'model': 'custom-svg-author',
-                                                       'reasoning': {'effort': 'medium'}})
+                                                       'reasoning': {'effort': 'low'}})
 
-    def test_realistic_uses_high_quality_sunburst_and_svg_reasoning(self):
+    def test_realistic_uses_sunburst_with_low_cost_defaults(self):
         result = self.run_script('--prompt', 'a small fire fox', '--id', 'vixi', '--style', 'realistic')
         self.assertEqual(result.returncode, 0, result.stderr)
         body = Mock.seen[0]['body']
         self.assertEqual(body['model'], 'gpt-image-2.6-sunburst')
-        self.assertEqual(body['quality'], 'high')
-        self.assertEqual(body['svg']['reasoning'], {'effort': 'high'})
+        self.assertEqual(body['quality'], 'low')
+        self.assertEqual(body['complexity'], 'low')
+        self.assertEqual(body['svg']['reasoning'], {'effort': 'low'})
 
     def test_check_reports_key_availability_without_value(self):
         env = dict(os.environ, OPENAI_API_KEY='sk-never-print')

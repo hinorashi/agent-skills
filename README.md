@@ -10,7 +10,7 @@ Version is each skill's `metadata.version`; the link opens its changelog.
 |---|---|---|
 | [changelog](skills/changelog/SKILL.md) | [1.0.0](skills/changelog/CHANGELOG.md) | Viết và đối chiếu ghi chú `[Unreleased]` từ thay đổi thực tế; gộp mục trùng, giữ lịch sử đã phát hành và không tự commit/tag/push. |
 | [release](skills/release/SKILL.md) | [1.0.0](skills/release/CHANGELOG.md) | Phát hành có xác nhận trên GitHub/Gitea; ưu tiên quy trình của kho, kèm script độc lập và kiểm thử từ Ganttz cho kho phù hợp. |
-| [peekaboo](skills/peekaboo/SKILL.md) | [1.6.0](skills/peekaboo/CHANGELOG.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and create an original SVG in chibi or realistic style with Basic SVG or direct AI SVG generation. It validates the drawing and shows a preview for approval before touching your code. The mascot peeks out without covering the UI, blinks, looks around, hides and leaves a clickable keepsake. |
+| [peekaboo](skills/peekaboo/SKILL.md) | [1.6.1](skills/peekaboo/CHANGELOG.md) | Adds a peeking mascot to your web app: pick a ready-made character (Kei, Mochi, Bolt), describe a new one, or bring your own image (photo, pet, sketch) and create an original SVG in chibi or realistic style with Basic SVG or direct AI SVG generation. It validates the drawing and shows a preview for approval before touching your code. The mascot peeks out without covering the UI, blinks, looks around, hides and leaves a clickable keepsake. |
 
 ![Kei, Mochi and Bolt](docs/gallery.png)
 
@@ -157,9 +157,12 @@ another project. The others are scaled from how long the skill's test runs took,
 
 Actual cost depends on the model and its credit multiplier, how large the app is, and how many follow-up tweaks you ask for.
 
-Optional AI SVG generation is billed separately by OpenAI. Flare is used for chibi; realistic uses Sunburst, high
-reference quality and high SVG-author reasoning by default. OpenAI charges for the internal reference image plus the
-tokens spent writing the SVG. It is off unless the user chooses the AI SVG branch.
+Optional AI SVG generation is billed separately by OpenAI. Flare is used for chibi and Sunburst for realistic.
+All image quality, complexity and SVG-author reasoning default to **low** because the mascot is shown at only
+80–150 px; raising detail mainly increases cost and latency. The prompt uses an original collectible-creature
+illustration direction with clean contours, rounded forms and broad cel shading, without copying franchise artwork.
+OpenAI charges for the internal reference image plus the tokens spent writing the SVG. It is off unless the user
+chooses the AI SVG branch.
 
 ## OpenAI API key for AI SVG
 

@@ -51,17 +51,25 @@ python3 <skill-dir>/scripts/generate_vector.py --prompt "small orange cat, pink 
   [--complexity low|medium|high] [--notes "softer fur shading"]
 ```
 
-`--complexity` defaults to `medium` and controls the reference-image planning. Higher complexity can add detail but
-also drift from the brief. Quality and SVG-author reasoning are selected by style: realistic uses Sunburst with
-`--quality high --svg-effort high`; chibi uses Flare with medium quality/reasoning. Override them only when the user
-asks. Higher SVG-author reasoning can increase the token cost of the SVG stage.
+`--complexity` defaults to `low` and controls the reference-image planning. Image quality and SVG-author reasoning
+also default to `low` for every request, because these mascots are displayed at only 80–150 px and extra detail raises
+cost/latency without reliably improving the result. Flare handles chibi; Sunburst handles realistic. Raise a setting
+only when the user explicitly approves the cost and detail tradeoff.
 
-SVG generation is synchronous. A long request can outlive a corporate proxy's idle-tunnel limit even when short
-OpenAI requests work. TCP keepalive is enabled by default; `OPENAI_KEEPALIVE_IDLE` changes the interval (15 seconds by
-default, clamped to 5–120). Set `OPENAI_KEEPALIVE=0` only for a controlled diagnosis. Network errors report a sanitized
-proxy hostname and port. Do not hide the proxy or retry the paid call automatically: a lost response may mean OpenAI
-already generated and billed the SVG. If keepalive is insufficient, stop and ask the network administrator to permit
-long-lived HTTPS to `api.openai.com`.
+The model receives one consistent, generic art direction: an original collectible-creature game illustration with
+bold clean dark contours, rounded expressive shapes, broad 2–3-tone cel shading, crisp highlights and no painterly
+texture. Do not put Pokémon, other franchise names, artist names or official character names into the prompt. The
+direction describes broad visual traits and keeps the mascot anatomy and silhouette original.
+
+SVG generation is synchronous and cannot use streaming or partial images. A long request can outlive a corporate
+proxy's idle-tunnel limit even when short OpenAI requests work. TCP keepalive is enabled by default;
+`OPENAI_KEEPALIVE_IDLE` changes the interval (15 seconds by default, clamped to 5–120), but TCP probes do not guarantee
+that an application proxy will preserve an idle tunnel. Set `OPENAI_KEEPALIVE=0` only for a controlled diagnosis.
+Network errors report a sanitized proxy hostname and port, including `RemoteDisconnected` failures. Do not hide the
+proxy or retry the paid call automatically: a lost response may mean OpenAI already generated and billed the SVG.
+After explicit approval for another paid call, the default low quality/complexity/reasoning settings minimize the
+request. Otherwise run outside the proxy or ask the network administrator to permit long-lived HTTPS to
+`api.openai.com`.
 
 The script writes `vector/raw.svg` (the untouched answer) and `vector/<id>.svg` (the adapted result):
 

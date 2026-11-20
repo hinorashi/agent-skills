@@ -47,6 +47,18 @@ In the report, say the old and new versions, what the user can now do, and any l
 
 Newest first. Each entry says what changed and what the app needs beyond copying the new module.
 
+### 1.6.1
+
+- **Clear proxy failures**: `RemoteDisconnected` from the OpenAI SVG request is reported as a network error with the
+  sanitized proxy route instead of a Python traceback. Long requests remain non-streaming and are not retried
+  automatically because a lost response may already be billed.
+- **Low-cost AI SVG defaults**: new AI SVG requests use low image quality, low complexity and low SVG-author reasoning.
+  Prompts request an original collectible-creature illustration without naming or reproducing franchise artwork.
+
+App changes:
+
+- None. Existing mascot behavior is unchanged; copy the module only to carry the 1.6.1 version stamp.
+
 ### 1.6.0
 
 - **Two SVG creation branches**: new mascots can use local Basic SVG or direct AI SVG generation with OpenAI.

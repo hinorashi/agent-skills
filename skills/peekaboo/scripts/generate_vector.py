@@ -49,9 +49,10 @@ VECTOR_HINTS = {
     'model': 'the selected image or SVG-author model is unavailable to this account; choose an available model.',
     'request': 'the API rejected the request; update or fix the skill before trying the AI branch again.',
     'server': 'the provider had an internal error after the automatic retry; try the AI branch again later.',
-    'network': 'the provider could not be reached; inspect the reported proxy route. Long SVG requests use TCP '
-               'keepalive by default (OPENAI_KEEPALIVE_IDLE=15). If a corporate proxy still closes the tunnel, '
-               'ask the network administrator to allow long-lived HTTPS to api.openai.com.',
+    'network': 'OpenAI SVG generation cannot stream. If the reported proxy closed the long-lived request, stop the '
+               'current run. After explicit approval for another paid call, rerun with --quality low '
+               '--complexity low --svg-effort low, or run outside the proxy. The lost response may already have '
+               'been billed.',
     'response': 'the provider response did not contain a usable SVG; report the response error.',
     'prompt': 'shorten or rephrase --prompt, then try the AI branch again.',
 }
@@ -65,6 +66,11 @@ NUMERIC_ATTRS = {'d', 'points', 'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 
 NUMBER = re.compile(r'-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?')
 MAX_BASE = 24000
 HEAVY_KB = 15
+ORIGINAL_ART_DIRECTION = (
+    'Original collectible-creature game illustration style: bold clean dark contours, rounded expressive shapes, '
+    'simple cel shading with 2-3 broad color tones per material, crisp highlights, lively silhouette, polished but '
+    'not photorealistic, and no painterly texture. Keep the creature design, anatomy and silhouette original.'
+)
 
 ET.register_namespace('', SVG_NS)
 ET.register_namespace('xlink', XLINK_NS)
@@ -121,7 +127,8 @@ def render_prompt(subject, style, width, height, notes, from_base):
         f'{intent}\n\n{subject}'
         f'{keeping} (head and upper body, the body cut off by the bottom edge), {proportions}, eyes near the middle '
         'of the height, the stated colors, and the top-most signature feature touching the very top of the canvas.\n'
-        f'Improve: {words}; refined, expressive shapes; each color in 2-3 tones for soft shading; still clear at '
+        f'Art direction: {words}. Also apply this rendering direction: {ORIGINAL_ART_DIRECTION} '
+        'Keep it visually strong at a small size; refined, expressive shapes; each color in 2-3 tones; still clear at '
         f'{width}x{height} pixels.\n'
         'Readability: use one clean silhouette and one copy of each anatomical part. The face must be visually dominant, '
         'high-contrast on both light and dark backgrounds, with exactly one mouth, exactly two eyes, and no stacked, '
@@ -541,11 +548,11 @@ def main():
     ap.add_argument('--svg-model', default=os.environ.get('OPENAI_SVG_MODEL', SVG_MODEL),
                     help=f'text model that authors the SVG (default {SVG_MODEL} or OPENAI_SVG_MODEL)')
     ap.add_argument('--svg-effort', choices=['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
-                    help='SVG-author reasoning; default high for realistic, medium for chibi')
-    ap.add_argument('--complexity', choices=['low', 'medium', 'high'], default='medium',
-                    help='how much the model plans before drawing (no extra fee; higher drifts more from the base)')
+                    help='SVG-author reasoning; default low to reduce tokens and latency')
+    ap.add_argument('--complexity', choices=['low', 'medium', 'high'], default='low',
+                    help='how much the model plans before drawing (default low for small mascots)')
     ap.add_argument('--quality', choices=['low', 'medium', 'high'],
-                    help='reference-image quality; default high for realistic, medium for chibi')
+                    help='reference-image quality; default low to reduce cost and latency for small mascots')
     ap.add_argument('--size', default='auto', help='reference image size, "auto" or WIDTHxHEIGHT (multiples of 16)')
     ap.add_argument('--api-key-stdin', action='store_true', help='read the OpenAI key from stdin')
     args = ap.parse_args()
@@ -554,8 +561,8 @@ def main():
         print('OpenAI: FOUND (OPENAI_API_KEY)' if os.environ.get('OPENAI_API_KEY') else 'OpenAI: MISSING')
         return 0
     args.model = args.model or ('gpt-image-2.6-sunburst' if args.style == 'realistic' else MODEL)
-    args.quality = args.quality or ('high' if args.style == 'realistic' else 'medium')
-    args.svg_effort = args.svg_effort or ('high' if args.style == 'realistic' else 'medium')
+    args.quality = args.quality or 'low'
+    args.svg_effort = args.svg_effort or 'low'
     modes = [bool(args.prompt), bool(args.base), bool(args.adapt)]
     if sum(modes) != 1:
         ap.error('give exactly one of --prompt, --base or --adapt')

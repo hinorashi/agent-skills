@@ -28,6 +28,7 @@ Standard library only (boto3 is used for Bedrock only when there is no API key).
 """
 import argparse
 import base64
+import http.client
 import json
 import os
 import socket
@@ -206,6 +207,11 @@ def post(url, body, headers, secret):
                 time.sleep(min(int(wait), 30) if wait.isdigit() else 5)
                 continue
             raise Fail(redact(text, secret), kind) from None
+        except http.client.RemoteDisconnected as error:
+            detail = str(error) or 'connection closed without response'
+            raise Fail(redact(
+                f'{url} via {proxy_route(url)} closed the connection before returning a response: {detail}', secret
+            ), 'network') from None
         except urllib.error.URLError as error:
             raise Fail(redact(f'cannot reach {url} via {proxy_route(url)}: {error.reason}', secret), 'network') from None
         except TimeoutError:

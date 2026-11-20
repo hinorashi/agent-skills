@@ -5,7 +5,7 @@ license: MIT
 compatibility: Web front ends (any framework or plain HTML). The bundled module is TypeScript with no dependencies; the scripts need Python 3. AI SVG generation needs network access and an OpenAI key.
 metadata:
   author: hinorashi
-  version: "1.6.0"
+  version: "1.6.1"
 ---
 
 # Peekaboo mascot
@@ -118,9 +118,12 @@ The two drawing methods are mutually exclusive:
   rejects the request or the answer fails adaptation, stop the AI SVG process immediately. Report the provider
   error and exit code to the user; do not create a local replacement, preview it, or install it. Only start
   **Basic SVG** in a new run after the user explicitly chooses that method.
-  For realistic style, use Sunburst, high reference quality and high SVG-author reasoning by default. For chibi,
-  use Flare with medium quality/reasoning. Treat duplicate anatomy, an oversized keepsake group or a narrow face as
-  an AI-result failure, even if the structural parts check passes.
+  Use **low** image quality, low complexity and low SVG-author reasoning by default for every AI SVG request. The
+  mascot is displayed at 80–150 px, so higher settings mainly add cost and detail that cannot survive at that size.
+  Use Sunburst for realistic and Flare for chibi. The model prompt describes a generic original collectible-creature
+  illustration—bold clean contours, rounded shapes and broad cel-shaded tones—without naming Pokémon, an artist or a
+  franchise. Treat duplicate anatomy, an oversized keepsake group or a narrow face as an AI-result failure, even if
+  the structural parts check passes.
 
 Both branches must produce SVG with the `pb-face`, `pb-eyes`, `pb-pupils` and `pb-keepsake` parts, a viewBox matching
 the size ratio (40 × 50 for 80 × 100), and the keepsake reaching the top. Validate it:
